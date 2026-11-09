@@ -5,3 +5,6 @@ vendor/ghostty/
 
 # libghostty static library, 143 MB (over GitHub's 100 MB limit); rebuilt from vendor/ghostty
 vendor/GhosttyKit.xcframework/macos-arm64/libghostty-internal.a
+
+# builds to hand out
+dist/

@@ -58,6 +58,15 @@ useful; nothing "fun but pointless".
       cp -R macos/GhosttyKit.xcframework ../GhosttyKit.xcframework
       cp -R zig-out/share/ghostty zig-out/share/terminfo ../ghostty-share/
 
+### Public repo and builds
+
+github.com/alentodorov/casa-browser (public since 2026-11-09). A build to hand out: `CASA_APP=dist/Casa.app
+CASA_SIGN=- ./build.sh`, then `ditto -c -k --keepParent dist/Casa.app dist/Casa-<version>-arm64.zip` and attach it to
+a GitHub release. It is ad-hoc signed and not notarized (no Developer ID certificate on this Mac), so the README
+tells people to clear the quarantine flag. Two defaults exist for other people's desks: `KeySwap` (NO turns the
+Cmd/Option swap and its Accessibility prompt off) and `AeroSpaceWorkspace` (a name, or `none`). `README.md` and
+`docs/*.png` are the public face; shoot those with a throwaway session and empty history so no private tabs show.
+
 ### build.sh
 
 `./build.sh` compiles `src/*.swift` with `-I/-L` into the xcframework, `-lghostty-internal -lc++` and the

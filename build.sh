@@ -5,7 +5,7 @@
 # where libghostty looks for them relative to the executable.
 set -e
 cd "$(dirname "$0")"
-APP="$HOME/Applications/Casa.app"
+APP="${CASA_APP:-$HOME/Applications/Casa.app}"   # CASA_APP=dist/Casa.app CASA_SIGN=- ./build.sh for a build to hand out
 KIT="vendor/GhosttyKit.xcframework/macos-arm64"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
@@ -18,6 +18,7 @@ swiftc -O -swift-version 5 src/*.swift \
 
 rsync -a --delete vendor/ghostty-share/ghostty/ "$APP/Contents/Resources/ghostty/"
 rsync -a --delete vendor/ghostty-share/terminfo/ "$APP/Contents/Resources/terminfo/"
+cp vendor/LICENSE-ghostty "$APP/Contents/Resources/ghostty/LICENSE"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -49,6 +50,6 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 PLIST
 # Signed with the Apple Development certificate when there is one, so macOS keeps Casa's
 # Accessibility permission (for the key swap, src/KeySwap.swift) across rebuilds; ad-hoc otherwise
-IDENTITY=$(security find-identity -v -p codesigning | awk '/Apple Development/ { print $2; exit }')
+IDENTITY=${CASA_SIGN:-$(security find-identity -v -p codesigning | awk '/Apple Development/ { print $2; exit }')}
 codesign -s "${IDENTITY:--}" -f "$APP"
 echo "Built $APP"

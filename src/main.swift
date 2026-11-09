@@ -8,8 +8,12 @@ import WebKit
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     static var shared: AppDelegate!
-    /// The AeroSpace workspace every Casa window lives on
-    static let workspace = "8"
+    /// The AeroSpace workspace every Casa window lives on: 8, or
+    /// `defaults write com.alentodorov.casa AeroSpaceWorkspace <name>`; "none" leaves windows alone
+    static let workspace: String? = {
+        let w = UserDefaults.standard.string(forKey: "AeroSpaceWorkspace") ?? "8"
+        return w.isEmpty || w == "none" ? nil : w
+    }()
     private(set) var windows: [BrowserWindow] = []
     private var pendingURLs: [URL] = []
     private var launched = false
@@ -72,12 +76,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// and is fullscreen there (AeroSpace's, so alt-f still toggles it). AeroSpace needs a moment to
     /// pick up a new window, so ask again if the first try was early.
     private func place(_ w: BrowserWindow, attempt: Int = 0) {
+        guard let workspace = AppDelegate.workspace else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + (attempt == 0 ? 0.4 : 0.8)) { [weak self, weak w] in
             guard let w else { return }
             guard w.isVisible else { if attempt < 4 { self?.place(w, attempt: attempt + 1) }; return }
             let id = String(w.windowNumber)
             let retry = { if attempt < 4 { self?.place(w, attempt: attempt + 1) } }
-            aerospace(["move-node-to-workspace", "--focus-follows-window", "--window-id", id, AppDelegate.workspace]) { ok in
+            aerospace(["move-node-to-workspace", "--focus-follows-window", "--window-id", id, workspace]) { ok in
                 guard ok else { retry(); return }
                 aerospace(["fullscreen", "on", "--window-id", id]) { ok in if !ok { retry() } }
             }

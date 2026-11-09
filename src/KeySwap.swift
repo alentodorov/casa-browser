@@ -15,6 +15,8 @@ final class KeySwap {
     fileprivate var casaFront = true
 
     func start() {
+        // For desks where Cmd and Option aren't swapped: defaults write com.alentodorov.casa KeySwap -bool NO
+        guard UserDefaults.standard.object(forKey: "KeySwap") as? Bool ?? true else { return }
         // Keep track of whether Casa is in front without asking on every key
         let nc = NSWorkspace.shared.notificationCenter
         nc.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] n in
