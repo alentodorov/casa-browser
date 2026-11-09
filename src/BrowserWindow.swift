@@ -211,7 +211,8 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
             self.commitSwitcher()
             return e
         }!)
-        // A click in a pane focuses it
+        // A click in a pane focuses it (the web view and the terminal also take first responder themselves,
+        // which makeFirstResponder above turns into the same focus change)
         monitors.append(NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self] e in
             guard let self, e.window === self, self.state.mode == .rest, let p = self.tiles.pane(at: e.locationInWindow) else { return e }
             if p !== self.state.focused { self.focus(p, makeFirst: false) }
@@ -233,6 +234,17 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
             if shift, let n = digits[e.keyCode] { self.movePane(toWorkspace: n); return nil }
             return e
         }!)
+    }
+
+    /// Whatever moves keyboard focus into a pane (a click, a page focusing a field, a link from a
+    /// terminal, the key monitor) also moves the outline: the focused pane follows the first responder
+    override func makeFirstResponder(_ responder: NSResponder?) -> Bool {
+        let ok = super.makeFirstResponder(responder)
+        if ok, state.mode == .rest, let v = responder as? NSView, let w = current,
+           let p = w.panes.first(where: { v === $0.view || v.isDescendant(of: $0.box) }), p !== focused {
+            focus(p, makeFirst: false)
+        }
+        return ok
     }
 
     static func defaultFrame() -> NSRect {
