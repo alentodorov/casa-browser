@@ -109,13 +109,19 @@ final class ConsoleSplit: NSSplitView {
     override var dividerThickness: CGFloat { 1 }
 }
 
-/// The strip's hosting view: empty parts of it drag the window, like a title bar would
+/// The strip's hosting view: empty parts of it drag the window, like a title bar would.
+/// The window's hidden title bar is still a 32pt safe area, which would push the pill and the
+/// overlays down by it; both hosting views lay out from the very top instead.
 final class StripHost<V: View>: NSHostingView<V> {
+    required init(rootView: V) { super.init(rootView: rootView); safeAreaRegions = [] }
+    @MainActor required dynamic init?(coder: NSCoder) { fatalError() }
     override var mouseDownCanMoveWindow: Bool { true }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
 final class OverlayHost<V: View>: NSHostingView<V> {
+    required init(rootView: V) { super.init(rootView: rootView); safeAreaRegions = [] }
+    @MainActor required dynamic init?(coder: NSCoder) { fatalError() }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 

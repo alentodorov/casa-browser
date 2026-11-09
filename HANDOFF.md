@@ -112,8 +112,12 @@ alt-* keys; `~/.aerospace.toml` owns `alt-*`, `alt-shift-*`, `alt-cmd-*`, `alt-c
 **Done and screenshot-tested** (`screenshots/01`–`27`): launch with palette, browsing, pill rest and
 hover, palette (address, tabs, commands), switcher, find with count, new / close / reopen tab, private
 window, download pill, console open / command / resized / closed / shell exit, narrow 640 tile, session
-restore. `01`–`04` and `15` were re-shot on 2026-11-09 with the tab numbers, workspace-8 fullscreen and no
-widget pills; the music pill still shows in some of the other shots from before the widgets were dropped.
+restore. `01`–`06`, `08`, `15` and `17` were re-shot on 2026-11-09 with the tab numbers, workspace-8
+fullscreen, no widget pills and the strip fix below; the music pill still shows in the other, older shots.
+
+Fixed 2026-11-09: the pill, tab numbers and overlays sat 16–32pt too low because `NSHostingView` honoured
+the hidden title bar as a 32pt safe area; `StripHost` and `OverlayHost` now set `safeAreaRegions = []`
+(the pill is at 5–31pt inside the 36pt strip, measured from screenshots).
 
 **Untested or caveated**
 
