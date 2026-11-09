@@ -3,8 +3,44 @@ import AppKit
 import Combine
 import WebKit
 
-/// The paper-coloured empty page a new tab starts on
-let blankHTML = "<!doctype html><html><head><meta charset=utf-8><title></title></head><body style='margin:0;background:#FFFCF0'></body></html>"
+/// The page a new pane starts on: Casa's keys, laid out like Omarchy's Super+K list (key, then what
+/// it does), in Flexoki paper and ink. Physical Cmd is Casa's Super.
+let blankHTML: String = {
+    let groups: [(String, [(String, String)])] = [
+        ("panes", [
+            ("CMD + ENTER", "terminal pane"), ("CMD + SHIFT + ENTER", "browser pane"), ("CMD + W", "close pane"),
+            ("CMD + ARROWS", "focus pane"), ("CMD + SHIFT + ARROWS", "swap pane"), ("CMD + J", "flip split"),
+            ("CMD + SHIFT + F", "zoom pane"), ("CMD + - / =", "narrower / wider"), ("CMD + SHIFT + - / =", "shorter / taller"),
+        ]),
+        ("workspaces", [
+            ("CMD + T", "new workspace"), ("CMD + 1 … 9", "workspace"), ("CMD + SHIFT + 1 … 9", "move pane to workspace"),
+            ("CTRL + TAB", "switcher"), ("CMD + SHIFT + [ / ]", "previous / next"), ("CMD + N", "new window"),
+            ("CMD + SHIFT + N", "private window"),
+        ]),
+        ("browser", [
+            ("CMD + L", "address or search"), ("CMD + K", "panes and commands"), ("CMD + [ / ]", "back / forward"),
+            ("CMD + R", "reload"), ("CMD + F", "find in page"), ("CMD + 0", "reset zoom"), ("CMD + SHIFT + T", "reopen closed pane"),
+            ("CMD + SHIFT + C", "copy url"), ("CMD + SHIFT + D", "downloads"), ("CMD + SHIFT + I", "web inspector"),
+        ]),
+    ]
+    func esc(_ s: String) -> String { s.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;") }
+    let sections = groups.map { title, rows in
+        "<section><h2>\(title)</h2>" + rows.map { "<div class=r><kbd>\(esc($0.0))</kbd><span>\(esc($0.1))</span></div>" }.joined() + "</section>"
+    }.joined()
+    return """
+    <!doctype html><html><head><meta charset=utf-8><title></title><style>
+    html,body{margin:0;background:#FFFCF0;color:#100F0F;font:bold 12px/1 "JetBrainsMono Nerd Font Propo","JetBrainsMono Nerd Font",ui-monospace,monospace}
+    body{display:flex;justify-content:center;padding:14vh 24px 48px;box-sizing:border-box;min-height:100vh}
+    main{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:40px 56px;max-width:1120px;width:100%}
+    h2{margin:0 0 14px;font-size:11px;font-weight:bold;color:#878580;text-transform:lowercase;letter-spacing:.04em}
+    .r{display:grid;grid-template-columns:minmax(12em,auto) 1fr;gap:0 18px;align-items:baseline;padding:6px 0;border-top:1px solid #E6E4D9}
+    .r:last-child{border-bottom:1px solid #E6E4D9}
+    kbd{font:inherit;color:#100F0F;white-space:nowrap}
+    span{color:#878580;font-weight:normal}
+    @media (max-width:560px){body{padding-top:8vh}.r{grid-template-columns:1fr;gap:3px}}
+    </style></head><body><main>\(sections)</main></body></html>
+    """
+}()
 
 @MainActor
 final class Tab: NSObject, ObservableObject {
