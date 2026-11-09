@@ -414,9 +414,10 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
         sessionChanged()
     }
 
-    func resize(_ axis: Axis, by delta: CGFloat) {
+    /// cmd-- / cmd-= (shift for the other axis): Omarchy's resizeactive ∓100, which moves the divider
+    func moveDivider(_ axis: Axis, by delta: CGFloat) {
         guard let w = current, let p = focused else { return }
-        w.resize(p, axis: axis, by: delta)
+        w.moveDivider(of: p, axis: axis, by: delta)
         refresh()
         sessionChanged()
     }
@@ -709,10 +710,10 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
     @objc func swapDown(_ s: Any?) { swap(.down) }
     @objc func toggleSplitAction(_ s: Any?) { toggleSplit() }
     @objc func toggleZoomAction(_ s: Any?) { toggleZoom() }
-    @objc func narrower(_ s: Any?) { resize(.horizontal, by: -100) }
-    @objc func wider(_ s: Any?) { resize(.horizontal, by: 100) }
-    @objc func shorter(_ s: Any?) { resize(.vertical, by: -100) }
-    @objc func taller(_ s: Any?) { resize(.vertical, by: 100) }
+    @objc func dividerLeft(_ s: Any?) { moveDivider(.horizontal, by: -100) }
+    @objc func dividerRight(_ s: Any?) { moveDivider(.horizontal, by: 100) }
+    @objc func dividerUp(_ s: Any?) { moveDivider(.vertical, by: -100) }
+    @objc func dividerDown(_ s: Any?) { moveDivider(.vertical, by: 100) }
     @objc func goBack(_ s: Any?) { goBack() }
     @objc func goForward(_ s: Any?) { goForward() }
     @objc func reloadPage(_ s: Any?) { currentTab?.webView.reload() }

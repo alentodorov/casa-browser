@@ -172,15 +172,18 @@ final class Workspace: ObservableObject {
         p.axis = p.axis == .horizontal ? .vertical : .horizontal
     }
 
-    /// Grows (or shrinks) the pane by `delta` points along the axis, at the nearest split on that axis
-    func resize(_ pane: Pane, axis: Axis, by delta: CGFloat) {
+    /// Hyprland's keyboard `resizeactive` in dwindle (DwindleLayout::resizeActiveWindow with no corner,
+    /// smart_resizing on): the nearest split on that axis above the pane gets its ratio moved by the
+    /// delta, whichever side of it the pane is on. So the keys move the divider: negative left / up,
+    /// positive right / down, and the focused pane grows or shrinks depending on its side. Same clamp
+    /// as Hyprland's 0.1…1.9 of a half.
+    func moveDivider(of pane: Pane, axis: Axis, by delta: CGFloat) {
         guard let root, var node = root.find(pane) else { return }
         while let p = node.parent {
             if p.axis == axis, let f = nodeFrames[ObjectIdentifier(p)] {
                 let size = (axis == .horizontal ? f.width : f.height) - Workspace.gap
                 guard size > 0 else { return }
-                let d = delta / size
-                p.ratio = min(0.85, max(0.15, p.ratio + (p.first === node ? d : -d)))
+                p.ratio = min(0.95, max(0.05, p.ratio + delta / size))
                 return
             }
             node = p

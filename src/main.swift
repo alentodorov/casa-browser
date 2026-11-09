@@ -208,10 +208,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         pane.addItem(item("Flip Split", #selector(BrowserWindow.toggleSplitAction(_:)), "j"))
         pane.addItem(item("Zoom Pane", #selector(BrowserWindow.toggleZoomAction(_:)), "f", [.command, .shift]))
         pane.addItem(.separator())
-        pane.addItem(item("Narrower", #selector(BrowserWindow.narrower(_:)), "-"))
-        pane.addItem(item("Wider", #selector(BrowserWindow.wider(_:)), "="))
-        pane.addItem(item("Shorter", #selector(BrowserWindow.shorter(_:)), "-", [.command, .shift]))
-        pane.addItem(item("Taller", #selector(BrowserWindow.taller(_:)), "=", [.command, .shift]))
+        // Omarchy's resizeactive -100 0 / 100 0 / 0 -100 / 0 100: they move the divider, so a pane on
+        // the left of it shrinks on cmd-- while a pane on the right grows
+        pane.addItem(item("Move Divider Left", #selector(BrowserWindow.dividerLeft(_:)), "-"))
+        pane.addItem(item("Move Divider Right", #selector(BrowserWindow.dividerRight(_:)), "="))
+        pane.addItem(item("Move Divider Up", #selector(BrowserWindow.dividerUp(_:)), "-", [.command, .shift]))
+        pane.addItem(item("Move Divider Down", #selector(BrowserWindow.dividerDown(_:)), "=", [.command, .shift]))
         pane.addItem(.separator())
         for n in 1...9 {   // cmd-shift-N itself is caught by the window's key monitor; these are for the menu
             pane.addItem(item("Move to Workspace \(n)", #selector(BrowserWindow.movePaneToWorkspaceAction(_:)), tag: n))
@@ -293,7 +295,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "zoom": w.toggleZoom()                                                    // cmd-shift-F
         case "resize":   // resize:w,100 or resize:h,-100
             let v = arg.split(separator: ",")
-            if v.count == 2, let d = Double(v[1]) { w.resize(v[0] == "h" ? .vertical : .horizontal, by: CGFloat(d)) }
+            if v.count == 2, let d = Double(v[1]) { w.moveDivider(v[0] == "h" ? .vertical : .horizontal, by: CGFloat(d)) }
         case "private": newWindow(private: true).makeKeyAndOrderFront(nil)
         case "newwindow": newWindow(private: false).makeKeyAndOrderFront(nil)
         case "term-type": w.focused?.terminal?.type(arg)
@@ -305,6 +307,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             for ws in w.state.workspaces {
                 let panes = ws.panes.map { ($0.isBrowser ? "web:" : "term:") + ($0.isBrowser ? ($0.tab?.url?.absoluteString ?? "nil") : $0.title) + (ws.focused === $0 ? "*" : "") }
                 NSLog("Casa dump: ws %d%@ panes %@", ws.number, ws === w.current ? " (current)" : "", panes.joined(separator: ", "))
+            }
+            if let c = w.current {
+                let frames = c.panes.map { p in c.paneFrames[p.id].map { "\(Int($0.minX)),\(Int($0.minY)) \(Int($0.width))x\(Int($0.height))" } ?? "hidden" }
+                NSLog("Casa dump: frames %@", frames.joined(separator: " | "))
             }
             NSLog("Casa dump: mode %@ focused %@", String(describing: w.state.mode), w.focused?.title ?? "nil")
         case "close": w.close()

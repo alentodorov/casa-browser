@@ -10,7 +10,7 @@ let blankHTML: String = {
         ("panes", [
             ("CMD + ENTER", "terminal pane"), ("CMD + SHIFT + ENTER", "browser pane"), ("CMD + W", "close pane"),
             ("CMD + ARROWS", "focus pane"), ("CMD + SHIFT + ARROWS", "swap pane"), ("CMD + J", "flip split"),
-            ("CMD + SHIFT + F", "zoom pane"), ("CMD + - / =", "narrower / wider"), ("CMD + SHIFT + - / =", "shorter / taller"),
+            ("CMD + SHIFT + F", "zoom pane"), ("CMD + - / =", "divider left / right"), ("CMD + SHIFT + - / =", "divider up / down"),
         ]),
         ("workspaces", [
             ("CMD + T", "new workspace"), ("CMD + 1 … 9", "workspace"), ("CMD + SHIFT + 1 … 9", "move pane to workspace"),
