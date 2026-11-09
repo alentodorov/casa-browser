@@ -1,4 +1,4 @@
-# Casa — plan (design phase, nothing built yet)
+# Casa — plan (the original design phase; HANDOFF.md has what was built)
 
 A small WKWebView browser for the iMac's Omarchy-style desktop: AeroSpace tiles it, SketchyBar sits
 above it, the chrome borrows the fake notch's style (black, JetBrainsMono Nerd Font Bold, paper text).
@@ -84,3 +84,11 @@ Content blocker (`WKContentRuleList` from an EasyList conversion), bookmarks / p
 tab between windows, user styles, picture in picture, a `casa` CLI (`casa open URL`, `casa tabs`) for
 scripts and SketchyBar, an app icon. No extensions: WebKit has none, so 1Password works only via its
 universal autofill, not its extension.
+
+## D. Tiles (added 2026-11-09, built)
+
+`d1`–`d4`: a Casa tab becomes an Omarchy-style workspace that tiles browser and terminal panes with
+Hyprland's dwindle layout inside the window. New panes split the focused one along its longer side and
+land right or below; cmd-arrows / cmd-shift-arrows / cmd-J / cmd-shift-F / cmd-- cmd-= / cmd-shift-1…9
+are Omarchy's keys with physical Cmd as Super. Workspaces 1…5 are always shown in the strip, dimmed
+while empty, like Omarchy's persistent workspaces. `mockups/render-tiles.sh` renders the mockups.

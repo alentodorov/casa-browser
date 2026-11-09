@@ -1,4 +1,4 @@
-// The console: libghostty (Ghostty's terminal core, vendor/GhosttyKit.xcframework, built from the
+// Terminal panes: libghostty (Ghostty's terminal core, vendor/GhosttyKit.xcframework, built from the
 // v1.4.0 source) in an NSView. The core draws into a Metal layer it attaches to this view itself; this
 // file hands it the size, scale, focus, keys, mouse and clipboard, the way Ghostty.app's SurfaceView
 // does, and reads ~/.config/ghostty/config through libghostty's own config loader.
@@ -100,7 +100,7 @@ final class GhosttyRuntime {
 
     static func closeSurface(_ ud: UnsafeMutableRawPointer?, _ processAlive: Bool) {
         guard let v = view(ud) else { return }
-        DispatchQueue.main.async { MainActor.assumeIsolated { v.owner?.consoleEnded() } }
+        DispatchQueue.main.async { MainActor.assumeIsolated { v.owner?.terminalEnded(v) } }
     }
 
     static func readClipboard(_ ud: UnsafeMutableRawPointer?, _ loc: ghostty_clipboard_e, _ state: UnsafeMutableRawPointer?,
@@ -152,7 +152,9 @@ final class GhosttyRuntime {
 final class TerminalView: NSView, @preconcurrency NSTextInputClient {
     private(set) var surface: ghostty_surface_t?
     weak var owner: BrowserWindow?
-    var pwd: String?
+    let workingDirectory: String
+    var pwd: String? { didSet { if let pwd { onPwd?(pwd) } } }
+    var onPwd: ((String) -> Void)?
     private var markedText = NSMutableAttributedString()
     private var keyTextAccumulator: [String]?
     private var cursor: NSCursor = .iBeam
@@ -163,6 +165,7 @@ final class TerminalView: NSView, @preconcurrency NSTextInputClient {
     init?(workingDirectory: String, owner: BrowserWindow) {
         guard let rt = GhosttyRuntime.shared else { return nil }
         self.owner = owner
+        self.workingDirectory = workingDirectory
         super.init(frame: NSRect(x: 0, y: 0, width: 800, height: 300))
         var cfg = ghostty_surface_config_new()
         cfg.userdata = Unmanaged.passUnretained(self).toOpaque()
@@ -258,7 +261,7 @@ final class TerminalView: NSView, @preconcurrency NSTextInputClient {
         window?.invalidateCursorRects(for: self)
     }
 
-    /// Menu shortcuts win over Ghostty's own keybinds: cmd-T is a new browser tab, not a terminal one
+    /// Menu shortcuts win over Ghostty's own keybinds: cmd-T is a new workspace, not a terminal tab
     override func performKeyEquivalent(with event: NSEvent) -> Bool { false }
 
     // MARK: Keys

@@ -63,13 +63,41 @@ final class History {
     }
 }
 
-/// The open windows and their tabs, written on every change and restored at launch
+/// The open windows, their workspaces and each workspace's pane tree, written on every change and
+/// restored at launch. Terminals come back as fresh shells in their saved directory.
 enum Session {
     struct Window: Codable {
+        var frame: [Double]   // x y w h
+        var workspaces: [Workspace]
+        var current: Int      // workspace number
+    }
+
+    struct Workspace: Codable {
+        var number: Int
+        var tree: Node
+        var focused: Int      // index into the tree's leaves, left to right
+        var zoomed: Bool
+    }
+
+    /// A leaf is a browser (`url`) or a terminal (`cwd`); a split has an axis ("h" side by side, "v"
+    /// stacked), a ratio and two children
+    struct Node: Codable {
+        var url: String?
+        var cwd: String?
+        var axis: String?
+        var ratio: Double?
+        var children: [Node]?
+        init(url: String) { self.url = url }
+        init(cwd: String) { self.cwd = cwd }
+        init(axis: String, ratio: Double, children: [Node]) { self.axis = axis; self.ratio = ratio; self.children = children }
+        var leaves: [Node] { children.map { $0.flatMap(\.leaves) } ?? [self] }
+    }
+
+    /// The v1 format: one tab per URL
+    private struct LegacyWindow: Codable {
         var urls: [String]
         var active: Int
-        var frame: [Double]   // x y w h
-        var console: Bool
+        var frame: [Double]
     }
 
     static func save(_ windows: [Window]) {
@@ -78,9 +106,14 @@ enum Session {
     }
 
     static func load() -> [Window] {
-        guard let d = FileManager.default.contents(atPath: Paths.session),
-              let w = try? JSONDecoder().decode([Window].self, from: d) else { return [] }
-        return w.filter { !$0.urls.isEmpty }
+        guard let d = FileManager.default.contents(atPath: Paths.session) else { return [] }
+        if let w = try? JSONDecoder().decode([Window].self, from: d) { return w.filter { !$0.workspaces.isEmpty } }
+        guard let old = try? JSONDecoder().decode([LegacyWindow].self, from: d) else { return [] }
+        return old.compactMap { w in
+            let ws = w.urls.enumerated().map { i, u in Workspace(number: i + 1, tree: Node(url: u), focused: 0, zoomed: false) }
+            guard !ws.isEmpty else { return nil }
+            return Window(frame: w.frame, workspaces: ws, current: min(max(0, w.active), ws.count - 1) + 1)
+        }
     }
 }
 

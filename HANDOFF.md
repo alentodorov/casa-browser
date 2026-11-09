@@ -6,31 +6,39 @@ commit and push only when told. The app builds to `~/Applications/Casa.app`, bun
 
 ## What Casa is
 
-Design **direction A, "Notch"**: no chrome except what floats in the page's top 36pt strip
-(`WKWebView.obscuredContentInsets`, macOS 26): a black pill at the top centre with lock, host and
-`3/7`; hover widens it to back / forward / reload and the path; cmd-L turns it into the palette, cmd-F
-into find. Tab numbers sit top-left in SketchyBar's workspace style. A download pill sits top right
-while a download runs. (The timer and now-playing pills from the mockups were dropped on 2026-11-09;
-the mockups still show them.) Tabs are keyboard-first; ctrl-tab held shows the switcher. One window = one tab
-group; every window is moved to AeroSpace workspace 8 and made fullscreen there (focus follows it). A libghostty console (zsh) slides up as a
-split under the page on cmd-J / cmd-enter / ctrl-`. Calm and useful; nothing "fun but pointless".
+Design **direction A, "Notch"**, extended on 2026-11-09 by **direction D, "Tiles"** (`mockups/d*`): a
+window is moved to AeroSpace workspace 8 and made fullscreen there; inside it, numbered **workspaces**
+(Omarchy's, not AeroSpace's) each tile **panes**, browser or terminal, the way Hyprland's dwindle layout
+does. A new pane splits the focused one along its longer side and lands right or below; Omarchy's keys
+(physical Cmd as Super) move focus, swap, flip, resize, zoom, close and move panes between workspaces.
 
-- `PLAN.md` — the three directions, the chosen one, keyboard map, v1 / later.
-- `mockups/` — the approved mockups (`a*-notch-*.png`); `mockups/render.sh` re-renders them.
-- `screenshots/` — every v1 state captured from the real app (see Testing).
+The only chrome is the 36pt paper strip above the panes: workspace numbers top-left in SketchyBar's
+workspace style (1…5 always, dimmed while empty, higher numbers while in use, the current one a filled
+square), a black pill at the top centre for the focused pane (lock + host for a browser, console glyph +
+folder for a terminal, a zoom glyph while zoomed; hover widens a browser pill to back / forward / reload
+and the path), and a download pill top right while a download runs. cmd-L turns the pill into the
+palette, cmd-F into find. Tiled panes have 6pt paper gaps, a 2pt ink border on the focused one and 1pt
+base150 on the rest; a single pane is edge to edge. ctrl-tab held shows the workspace switcher. Calm and
+useful; nothing "fun but pointless".
+
+- `PLAN.md` — the original three directions and the chosen one.
+- `mockups/` — `a*-notch-*.png` (approved v1) and `d*-tiles-*.png` (approved tiles); `render.sh` /
+  `render-tiles.sh` re-render them.
+- `screenshots/` — every state captured from the real app (see Testing).
 
 ## Architecture (`src/`, plain `swiftc`, no Xcode project)
 
 | file | what |
 |---|---|
 | `main.swift` | `AppDelegate`: windows, the whole menu (every shortcut lives here), session save/restore, URL open (http/https registered in Info.plist but Casa is **not** set as default browser), `place(_:)` (runs `aerospace move-node-to-workspace --focus-follows-window --window-id N 8` then `aerospace fullscreen on --window-id N` for each new window, 4 retries; `AppDelegate.workspace` is the "8"), the `CASA_DEBUG` channel. Starts `KeySwap`. |
-| `KeySwap.swift` | CGEvent tap (`.cghidEventTap`, head insert) active only while Casa is frontmost. Alen's Karabiner swaps cmd/alt globally so physical Cmd drives AeroSpace; this swaps them back inside Casa: generic flags, device-specific bits, and modifier keycodes 55/58, 54/61 on flagsChanged. So in Casa physical Cmd = cmd (Chrome-like) and physical Option = alt (reaches AeroSpace). Needs Accessibility: prompts at launch, polls `AXIsProcessTrusted` every 2s until granted. |
-| `BrowserWindow.swift` | `WindowState` (tabs, mode, palette rows, find, download pill, console flag) and `BrowserWindow: NSWindow` (widgets' chromeless window: hidden transparent title bar, traffic lights hidden, min 480×320). Holds an `NSSplitView` (page over console), the strip hosting view, the overlay hosting view (palette / switcher), all tab actions, and the `@objc` menu actions. |
-| `Chrome.swift` | SwiftUI: `StripView` (progress line, `TabNumbers`, `PillView`, `FindPill`, `StatusPills`), `OverlayView` (`PaletteView`, `SwitcherView`), `KeyField` (an AppKit text field so arrows / enter / esc are reliable). `TabNumbers`: numbers top-left, current tab = U+F14FB filled square, click selects, hover shows the title, hidden while palette or switcher is open. |
-| `Tab.swift` | One `WKWebView` per tab: KVO (title, url, progress, canGoBack…), navigation / UI delegates (popups → new tab, JS dialogs → sheets), `WKDownload` to `~/Downloads`, find with a JS-counted "n/m", zoom per host, Safari-like UA. Private windows use `WKWebsiteDataStore.nonPersistent()`. |
-| `Console.swift` | libghostty. `GhosttyRuntime` (init, config from `~/.config/ghostty/config` via libghostty's loader, app, runtime callbacks: wakeup, action, clipboard, close). `TerminalView: NSView, NSTextInputClient`, a cut-down port of Ghostty's `SurfaceView_AppKit.swift`: the core attaches its own Metal layer; the view forwards size, scale, focus, keys, mouse, scroll, copy/paste. Shell exit closes the console; cmd-click links open as Casa tabs; menu shortcuts beat Ghostty's own cmd keybinds. |
-| `History.swift` | `~/.local/state/casa/`: `history.jsonl`, `session.json`, `zoom.json`. |
-| `Theme.swift` | Flexoki colours, font, Nerd Font glyphs, paths. |
+| `KeySwap.swift` | CGEvent tap (`.cghidEventTap`, head insert) active only while Casa is frontmost. Alen's Karabiner swaps cmd/alt globally so physical Cmd drives AeroSpace; this swaps them back inside Casa: generic flags, device-specific bits, and modifier keycodes 55/58, 54/61 on flagsChanged. So in Casa physical Cmd = cmd (Omarchy's Super) and physical Option = alt (reaches AeroSpace). Needs Accessibility: prompts at launch, polls `AXIsProcessTrusted` every 2s until granted. |
+| `Layout.swift` | The tiling model. `Pane` (a `Tab` or a `TerminalView` in a `PaneBox`, with published title/host), `Node` (leaf or split with axis + ratio), `Workspace` (number, tree, focused, zoomed): `insert` (dwindle split), `remove` (sibling collapses up, focus to the nearest pane), `swap`, `toggleSplit`, `resize` (nearest ancestor split on that axis), `layout(in:)` (frames with 6pt gaps, zoom), `neighbour(of:_:)` (adjacent across the gap, overlapping, preferring the one in line with the centre), session encode/restore. |
+| `BrowserWindow.swift` | `WindowState` (workspaces, current, focused pane, mode, palette rows, find, download) and `BrowserWindow: NSWindow`: the chromeless window (hidden transparent title bar, traffic lights hidden, min 480×320), `TilesView` (flipped, hosts the current workspace's pane boxes, relayouts on resize), the strip and overlay hosting views (both with `safeAreaRegions = []`), every workspace / pane operation, three local event monitors (ctrl release commits the switcher; a click focuses the pane under it; cmd-arrows / cmd-shift-arrows / cmd-shift-1…9 are taken ahead of the web view and Ghostty), overlays, downloads, session, the `@objc` menu actions. |
+| `Chrome.swift` | SwiftUI: `StripView` (progress line, `WorkspaceNumbers`, `PillView` / `TerminalPill`, `FindPill`, `StatusPills`), `OverlayView` (`PaletteView`, `SwitcherView` over workspaces), `KeyField` (an AppKit text field so arrows / enter / esc are reliable). |
+| `Tab.swift` | One `WKWebView` per browser pane: KVO (title, url, progress, canGoBack…), navigation / UI delegates (pop-ups → a new pane beside this one, JS dialogs → sheets), `WKDownload` to `~/Downloads`, find with a JS-counted "n/m", zoom per host, Safari-like UA. Private windows use `WKWebsiteDataStore.nonPersistent()`. |
+| `Console.swift` | libghostty for terminal panes. `GhosttyRuntime` (init, config from `~/.config/ghostty/config` via libghostty's loader, app, runtime callbacks: wakeup, action, clipboard, close). `TerminalView: NSView, NSTextInputClient`, a cut-down port of Ghostty's `SurfaceView_AppKit.swift`: the core attaches its own Metal layer; the view forwards size, scale, focus, keys, mouse, scroll, copy/paste, reports `pwd` (shell integration) through `onPwd`. Shell exit closes the pane; cmd-click links open as browser panes; menu shortcuts beat Ghostty's own cmd keybinds. |
+| `History.swift` | `~/.local/state/casa/`: `history.jsonl`, `session.json` (v2: windows → workspaces → pane trees; v1's url list still loads), `zoom.json`. |
+| `Theme.swift` | Flexoki colours, font (the Nerd Font **Propo** build, see below), Nerd Font glyphs, `persistentWorkspaces = 5`, paths. |
 
 ### vendor/
 
@@ -68,8 +76,10 @@ Debug channel (only with `CASA_DEBUG=1`): a distributed notification named
 
 Commands (`name` or `name:arg`), all on the key window: `palette`, `palette-tabs`, `type:TEXT` (palette
 or find field), `up`, `down`, `enter`, `esc`, `find`, `switcher`, `commit`, `hover:on|off`,
-`newtab[:URL]`, `closetab`, `reopen`, `select:N`, `private`, `newwindow`, `console`,
-`console-type:LINE` (types it and Enter), `console-height:PX`, `frame:x,y,w,h`, `load:URL`, `close`, `quit`.
+`workspace[:URL]` (cmd-T), `ws:N` (cmd-N), `move-ws:N` (cmd-shift-N), `browser[:URL]` (cmd-shift-enter),
+`term` (cmd-enter), `term-type:LINE` (types it and Enter into the focused terminal), `closepane`,
+`reopen`, `focus:l|r|u|d`, `swap:l|r|u|d`, `flip`, `zoom`, `resize:w|h,DELTA`, `private`, `newwindow`,
+`frame:x,y,w,h`, `load:URL`, `dump` (NSLogs every workspace, pane and the mode), `close`, `quit`.
 `type:>` must be quoted in zsh.
 
 Screenshots without stealing focus: find the window id with `CGWindowListCopyWindowInfo` (owner "Casa",
@@ -77,75 +87,77 @@ layer 0) or `aerospace list-windows --all | grep Casa`, then
 
     screencapture -l<windowID> -o -x out.png
 
-For a narrow tile: `aerospace layout floating --window-id N`, `frame:200,100,640,800`, then
-`aerospace layout tiling --window-id N`. Every window lands on workspace 8 and focuses it (switch back
-with `aerospace workspace N`); quit when done.
-The debug path sets state directly, so it doesn't exercise real key events.
+**A launch pulls focus to workspace 8** (that is the feature). During a scripted test, switch back to
+Alen's workspace the moment the window appears (`aerospace workspace N`): otherwise his reflex
+Cmd+digit to get back lands in Casa as cmd-N and creates a blank workspace with the palette, which
+looked like a bug twice before it was understood. Wait for the process to exit (`pgrep`) before
+touching `session.json`, since quitting writes it. For a narrow tile: `aerospace layout floating
+--window-id N`, `frame:200,100,640,800`, then `aerospace layout tiling --window-id N` and `aerospace
+fullscreen on --window-id N`. The debug path sets state directly, so it doesn't exercise real key events.
 
 ## Keyboard map
 
 Inside Casa `KeySwap` makes physical Cmd = cmd and physical Option = alt (AeroSpace). Casa binds no
 alt-* keys; `~/.aerospace.toml` owns `alt-*`, `alt-shift-*`, `alt-cmd-*`, `alt-ctrl-*`, `ctrl-cmd-tab`.
+The pane keys are Omarchy's with physical Cmd as Super.
 
 | keys | does |
 |---|---|
-| cmd-L | palette, address mode (URL selected) |
-| cmd-K | palette, tabs + `>` commands |
-| cmd-T, cmd-shift-enter | new tab (blank, palette opens) |
-| cmd-W / cmd-shift-W / cmd-shift-T | close tab / close window / reopen closed tab |
-| cmd-N / cmd-shift-N | new window / private window (both on workspace 8, AeroSpace-fullscreen) |
-| cmd-1…8, cmd-9 | tab N, last tab |
-| ctrl-tab / ctrl-shift-tab | next / previous; held, the switcher stays open until ctrl is released |
-| cmd-shift-] / cmd-shift-[ | next / previous tab |
+| cmd-enter, ctrl-` | new terminal pane, split from the focused pane (starts in the focused terminal's directory, else `~/projects`) |
+| cmd-shift-enter, cmd-shift-B | new browser pane, palette open |
+| cmd-T | new workspace at the lowest free number, blank pane, palette open |
+| cmd-W | close pane; the last pane closes its workspace, the last workspace the window |
+| cmd-shift-T | reopen the last closed browser pane's URL as a new pane |
+| cmd-arrows | focus the pane in that direction |
+| cmd-shift-arrows | swap with the pane in that direction |
+| cmd-J | flip the focused pane's split |
+| cmd-shift-F | zoom the focused pane to the whole workspace, again to unzoom |
+| cmd-- / cmd-= | pane width −100 / +100; with shift, height |
+| cmd-1…9 | workspace N (an empty one opens blank with the palette) |
+| cmd-shift-1…9 | move the focused pane to workspace N and follow |
+| ctrl-tab / ctrl-shift-tab | next / previous workspace; held, the switcher stays open until ctrl is released |
+| cmd-shift-] / cmd-shift-[ | next / previous workspace |
+| cmd-L / cmd-K | palette, address mode / panes + `>` commands (from a terminal pane the result opens in a new browser pane) |
 | cmd-[ / cmd-] | back / forward (two-finger swipe too) |
 | cmd-R / cmd-shift-R / cmd-. | reload / ignoring cache / stop |
 | cmd-F, cmd-G, cmd-shift-G, esc | find, next, previous, close |
-| cmd-= / cmd-- / cmd-0 | zoom in / out / reset, remembered per host |
-| cmd-shift-C | copy URL |
-| cmd-shift-D | reveal latest download / open ~/Downloads |
-| cmd-shift-I | Web Inspector |
-| cmd-J, cmd-enter, ctrl-` | toggle console |
-| cmd-Q, cmd-C/V/X/A/Z, cmd-H | standard (copy/paste also in the console) |
+| cmd-0 | reset page zoom (zoom in/out: pinch, or the palette's `>zoom in` / `>zoom out`) |
+| cmd-N / cmd-shift-N | new window / private window (both on workspace 8, AeroSpace-fullscreen) |
+| cmd-shift-C, cmd-shift-D, cmd-shift-I | copy URL, reveal latest download, Web Inspector |
+| cmd-Q, cmd-C/V/X/A/Z, cmd-H | standard (copy/paste also in terminals) |
 
 ## Status
 
-**Done and screenshot-tested** (`screenshots/01`–`27`): launch with palette, browsing, pill rest and
-hover, palette (address, tabs, commands), switcher, find with count, new / close / reopen tab, private
-window, download pill, console open / command / resized / closed / shell exit, narrow 640 tile, session
-restore. `01`–`06`, `08`, `15` and `17` were re-shot on 2026-11-09 with the tab numbers, workspace-8
-fullscreen, no widget pills and the strip fix below; the music pill still shows in the other, older shots.
-
-Fixed 2026-11-09: the pill, tab numbers and overlays sat 16–32pt too low because `NSHostingView` honoured
-the hidden title bar as a 32pt safe area; `StripHost` and `OverlayHost` now set `safeAreaRegions = []`
-(the pill is at 5–31pt inside the 36pt strip, measured from screenshots).
-
-Fixed 2026-11-09, design QA: wide Nerd Font icons lost their right edge (the current-tab square, globe,
-history, ⌘) because in "JetBrainsMono Nerd Font" an icon's ink is wider than its advance and SwiftUI clips
-to the advance; `Theme.fontName` is now the "Propo" build (same letters, icons get their full advance).
-Two glyphs were wrong codepoints: tab rows showed md-box_cutter_off and the private pill md-import; now
-md-tab (F04E9) and md-incognito (F05F9). Look codepoints up in nerd-fonts' `glyphnames.json`, not from memory.
-Nits left as they are: disabled back/forward at 30% are very faint on black; the palette field's selection
-colour follows the system accent.
+**Done and screenshot-tested** (`screenshots/`): `01`–`10`, `15`–`17`, `22`–`27` the v1 chrome (palette,
+switcher, find, private, download, narrow, restore; a few older ones still show the dropped music pill);
+`28`–`42` the tiles: restore, terminal pane, three panes, focus, swap, flip, resize, zoom, move to
+workspace 4, switcher, palette over panes, pane closed, narrow, terminal exit, v2 restore.
 
 **Untested or caveated**
 
 - `KeySwap` has not been tried with real keys; it needs Alen to grant Accessibility to Casa first.
-  Verify: physical Cmd-T opens a tab, physical Cmd-L the palette, physical Option-1 switches workspace.
-- The menu shortcuts, ctrl-tab-held switcher and console typing were only driven through the debug
-  channel, not real key events. Give them a hands-on pass.
-- **Dark pages** (see `04-three-tabs.png`, ghostty.org): the 36pt strip shows the web view's
-  `underPageBackgroundColor` (paper), not the page, so a dark page gets a paper band on top and the
-  ink tab numbers sit on its edge. Needs a design call: tint the strip from the page (`WKWebView.themeColor`
-  / a sampled colour) or switch the numbers to paper over dark pages. Not changed.
+  Verify: physical Cmd-T opens a workspace, physical Cmd-L the palette, physical Option-1 switches
+  AeroSpace workspace.
+- The menu shortcuts and the key monitor (cmd-arrows, cmd-shift-arrows, cmd-shift-digits) were only
+  driven through the debug channel, not real key events; cmd-arrows are taken even inside a page's text
+  field, by design. Give them a hands-on pass.
+- Dark pages: the 36pt strip is paper by design, so a dark page gets a paper band on top.
 - Find's "n/m" counts page text, so hidden text can inflate it.
 - Web Inspector uses WebKit's private `_inspector`; right-click → Inspect Element is the fallback.
-- The console auto-approves Ghostty's clipboard confirmations; Ghostty's own cmd keybinds (cmd-K
-  clear, font size) are shadowed by Casa's menu.
+- Terminal panes auto-approve Ghostty's clipboard confirmations; Ghostty's own cmd keybinds are
+  shadowed by Casa's menu.
 - No extensions (WebKit): 1Password only via universal autofill.
+- Nits: disabled back/forward at 30% are very faint on black; the palette field's selection colour
+  follows the system accent.
 
-**Later**: content blocker (`WKContentRuleList` from an EasyList conversion), real favicons (now letter
-tiles by host), bookmarks / pinned tabs, moving tabs between windows, user styles, picture in picture,
-a `casa` CLI (`casa open URL`, `casa tabs`) for scripts and SketchyBar, an app icon, pointing AeroSpace's
+Fixed along the way (2026-11-09): hosting views honoured the hidden title bar as a 32pt safe area (pill
+sat 16pt low); the plain Nerd Font clipped wide icons (ink wider than advance), hence the Propo build;
+two wrong glyph codepoints (look them up in nerd-fonts' `glyphnames.json`, not from memory).
+
+**Later**: Omarchy's groups (tabs inside a pane), pseudo, floating and mouse drag/resize (AeroSpace does
+those for the whole window), content blocker (`WKContentRuleList` from an EasyList conversion), real
+favicons (now letter tiles by host), bookmarks / pinned panes, user styles, picture in picture, a `casa`
+CLI (`casa open URL`, `casa tabs`) for scripts and SketchyBar, an app icon, pointing AeroSpace's
 `alt-shift-enter` at Casa instead of Chrome (Alen's call, in his dotfiles).
 
 ## Alen's working preferences

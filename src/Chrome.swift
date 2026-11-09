@@ -1,6 +1,7 @@
-// The chrome, in SwiftUI: the pill (host, tab count; back / forward / reload on hover), the find
-// field in its place, the download pill on the right, and the overlays:
-// the palette (one search over tabs, history, URLs and commands) and the tab switcher.
+// The chrome, in SwiftUI: the workspace numbers (the bar's style), the pill for the focused pane
+// (host, or the terminal's folder; back / forward / reload on hover), the find field in its place,
+// the download pill on the right, and the overlays: the palette (one search over panes, history,
+// URLs and commands) and the workspace switcher.
 import AppKit
 import SwiftUI
 
@@ -106,19 +107,22 @@ struct StripView: View {
         GeometryReader { geo in
             let narrow = geo.size.width < Theme.narrowWidth
             ZStack(alignment: .top) {
-                if let tab = state.current { ProgressLine(tab: tab, width: geo.size.width) }
+                if let tab = state.focused?.tab { ProgressLine(tab: tab, width: geo.size.width) }
                 Group {
                     switch state.mode {
                     case .find: FindPill(state: state)
                     case .palette, .switcher: EmptyView()
                     case .rest:
-                        if let tab = state.current { PillView(state: state, tab: tab, narrow: narrow) }
+                        if let pane = state.focused {
+                            if let tab = pane.tab { PillView(state: state, pane: pane, tab: tab, narrow: narrow) }
+                            else { TerminalPill(state: state, pane: pane) }
+                        }
                     }
                 }
                 .padding(.top, 5)
                 .frame(maxWidth: .infinity)
                 if state.mode != .palette, state.mode != .switcher {
-                    TabNumbers(state: state)
+                    WorkspaceNumbers(state: state)
                         .frame(height: 26)            // the pill's height and line
                         .padding(.top, 5).padding(.leading, 12)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -132,22 +136,26 @@ struct StripView: View {
     }
 }
 
-/// The tabs as the bar shows workspaces: a number each, the current one a filled square (the same
-/// glyph and ink as SketchyBar's workspaces). cmd-1…9 picks them; click one to go to it.
-struct TabNumbers: View {
+/// The workspaces as Omarchy's bar shows them: 1…5 always, dimmed while empty, higher numbers while
+/// in use, the current one a filled square (the same glyph and ink as SketchyBar's workspaces).
+/// cmd-1…9 picks them; click one to go to it (an empty one opens blank with the palette).
+struct WorkspaceNumbers: View {
     @ObservedObject var state: WindowState
 
     var body: some View {
+        let used = Set(state.workspaces.map(\.number))
+        let last = max(Theme.persistentWorkspaces, used.max() ?? 0)
         HStack(spacing: 0) {
-            ForEach(Array(state.tabs.enumerated()), id: \.offset) { i, tab in
-                let current = i == state.active
-                Text(current ? "\u{F14FB}" : (i < 9 ? "\(i + 1)" : "·"))
+            ForEach(1...last, id: \.self) { n in
+                let current = state.current?.number == n
+                let inUse = used.contains(n)
+                Text(current ? "\u{F14FB}" : (n < 10 ? "\(n)" : "·"))
                     .font(Theme.mono(12))
-                    .foregroundStyle(Theme.ink.opacity(current ? 1 : 0.85))
+                    .foregroundStyle(Theme.ink.opacity(current ? 1 : inUse ? 0.85 : 0.35))
                     .frame(width: 20, height: 24)
                     .contentShape(Rectangle())
-                    .onTapGesture { state.window?.select(i) }
-                    .help(tab.title.isEmpty ? (tab.url?.host ?? "New Tab") : tab.title)
+                    .onTapGesture { state.window?.goToWorkspace(n) }
+                    .help(state.workspaces.first { $0.number == n }?.focused?.title ?? "Workspace \(n)")
             }
         }
     }
@@ -167,12 +175,14 @@ struct ProgressLine: View {
 
 struct PillView: View {
     @ObservedObject var state: WindowState
+    @ObservedObject var pane: Pane
     @ObservedObject var tab: Tab
     let narrow: Bool
 
     var body: some View {
         let host = displayHost(tab.url)
         BlackPill {
+            if state.current?.zoomed === pane { Text(Theme.zoom).font(Theme.mono(11)).foregroundStyle(Theme.grey) }
             if state.hover {
                 HStack(spacing: 12) {
                     Button { state.window?.goBack() } label: { Text(Theme.back) }
@@ -198,9 +208,6 @@ struct PillView: View {
                 } else {
                     Text(host).font(Theme.mono(12)).foregroundStyle(tab.isLoading ? Theme.grey : Theme.paper).lineLimit(1)
                 }
-                if state.tabs.count > 1 {
-                    Text("\(state.active + 1)/\(state.tabs.count)").font(Theme.mono(10)).foregroundStyle(Theme.grey)
-                }
             }
             .contentShape(Rectangle())
             .onTapGesture { state.window?.openPalette(.url) }
@@ -215,6 +222,20 @@ struct PillView: View {
         if let q = u.query { p += "?" + q }
         if p == "/" { p = "" }
         return p.count > 60 ? String(p.prefix(57)) + "…" : p
+    }
+}
+
+/// The pill while a terminal pane is focused: the folder it is in
+struct TerminalPill: View {
+    @ObservedObject var state: WindowState
+    @ObservedObject var pane: Pane
+    var body: some View {
+        BlackPill {
+            if state.current?.zoomed === pane { Text(Theme.zoom).font(Theme.mono(11)).foregroundStyle(Theme.grey) }
+            Text(Theme.console).font(Theme.mono(11)).foregroundStyle(Theme.grey)
+            Text(pane.title).font(Theme.mono(12)).foregroundStyle(Theme.paper).lineLimit(1)
+        }
+        .frame(maxWidth: 640)
     }
 }
 
@@ -320,8 +341,8 @@ struct SwitcherView: View {
     var body: some View {
         GeometryReader { geo in
             VStack(spacing: 2) {
-                ForEach(Array(state.tabs.enumerated()), id: \.element) { i, tab in
-                    SwitcherRow(tab: tab, index: i, selected: i == state.switcherSelection)
+                ForEach(Array(state.workspaces.enumerated()), id: \.element.number) { i, w in
+                    SwitcherRow(workspace: w, selected: i == state.switcherSelection)
                         .onTapGesture { state.switcherSelection = i; state.window?.commitSwitcher() }
                 }
             }
@@ -333,18 +354,26 @@ struct SwitcherView: View {
     }
 }
 
+/// A workspace: its number, the focused pane's tile and title, the host (and how many panes it holds)
 struct SwitcherRow: View {
-    @ObservedObject var tab: Tab
-    let index: Int
+    @ObservedObject var workspace: Workspace
     let selected: Bool
     var body: some View {
-        let host = displayHost(tab.url)
+        let pane = workspace.focused
+        let host = pane?.host ?? ""
+        let count = workspace.panes.count
         HStack(spacing: 10) {
-            Text(index < 9 ? "\(index + 1)" : "").font(Theme.mono(10)).foregroundStyle(Theme.grey).frame(width: 12)
-            Tile(host: host, size: 16)
-            Text(tab.title.isEmpty ? (host.isEmpty ? "new tab" : host) : tab.title).font(Theme.mono(12)).foregroundStyle(Theme.paper).lineLimit(1)
+            Text(workspace.number < 10 ? "\(workspace.number)" : "·").font(Theme.mono(10)).foregroundStyle(Theme.grey).frame(width: 12)
+            if pane?.isBrowser == true {
+                Tile(host: host, size: 16)
+            } else {
+                Text(Theme.console).font(Theme.mono(12)).foregroundStyle(Theme.grey).frame(width: 16)
+            }
+            Text(pane.map { $0.title.isEmpty ? (host.isEmpty ? ($0.isBrowser ? "new tab" : "terminal") : host) : $0.title } ?? "")
+                .font(Theme.mono(12)).foregroundStyle(Theme.paper).lineLimit(1)
             Spacer()
-            Text(host).font(Theme.mono(10)).foregroundStyle(Theme.grey).lineLimit(1)
+            Text(count > 1 ? "\(host.isEmpty ? "" : host + " \u{B7} ")\(count) panes" : host)
+                .font(Theme.mono(10)).foregroundStyle(Theme.grey).lineLimit(1)
         }
         .padding(.horizontal, 10).frame(height: 32)
         .background(RoundedRectangle(cornerRadius: 8).fill(selected ? Theme.paper.opacity(0.1) : .clear))

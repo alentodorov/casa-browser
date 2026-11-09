@@ -46,7 +46,6 @@ final class Tab: NSObject, ObservableObject {
         webView.navigationDelegate = self
         webView.uiDelegate = self
         webView.autoresizingMask = [.width, .height]
-        webView.obscuredContentInsets = NSEdgeInsets(top: Theme.stripHeight, left: 0, bottom: 0, right: 0)
         webView.setValue(false, forKey: "drawsBackground")
         webView.underPageBackgroundColor = Theme.nsPaper
 
@@ -230,8 +229,8 @@ extension Tab: WKDownloadDelegate {
 extension Tab: WKUIDelegate {
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                  for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-        // target=_blank and window.open: a new tab in this window
-        if let u = navigationAction.request.url { owner?.newTab(url: u, select: true) }
+        // target=_blank and window.open: a new browser pane next to this one
+        if let u = navigationAction.request.url { owner?.newBrowserPane(url: u, splitting: self) }
         return nil
     }
 

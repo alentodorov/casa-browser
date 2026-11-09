@@ -1,5 +1,6 @@
-// Casa: a small WebKit browser for the iMac's tiled desktop. One window is one tab group, the chrome
-// is a pill in the page's top strip, cmd-L / cmd-K open the palette, cmd-J the console (libghostty).
+// Casa: a small WebKit browser for the iMac's tiled desktop. A window holds numbered workspaces that
+// tile browser and terminal panes the way Omarchy's Hyprland does; the chrome is a pill in the top
+// strip, cmd-L / cmd-K open the palette, cmd-enter a terminal pane (libghostty).
 // Built by build.sh into ~/Applications/Casa.app, like the widgets.
 import AppKit
 import WebKit
@@ -33,7 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func application(_ app: NSApplication, open urls: [URL]) {
         guard launched else { pendingURLs += urls; return }
         let w = keyBrowserWindow ?? newWindow(private: false, urls: [])
-        for u in urls { w.newTab(url: u) }
+        for u in urls { w.newWorkspace(url: u) }
         w.makeKeyAndOrderFront(nil)
     }
 
@@ -59,10 +60,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         windows.append(w)
         place(w)
         if let urls, !urls.isEmpty {
-            for u in urls { w.newTab(url: u, select: false) }
-            w.select(0)
+            for u in urls { w.newWorkspace(url: u) }
+            if let first = w.workspace(1) { w.switchTo(first) }
         } else if urls == nil {
-            w.newTab(url: nil)   // a blank tab with the palette open
+            w.newWorkspace(url: nil)   // workspace 1, a blank pane with the palette open
         }
         return w
     }
@@ -92,7 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func openFromConsole(_ s: String) {
         guard let u = URL(string: s) else { return }
         if let scheme = u.scheme, scheme == "http" || scheme == "https" || scheme == "file" {
-            (keyBrowserWindow ?? newWindow(private: false, urls: [])).newTab(url: u)
+            (keyBrowserWindow ?? newWindow(private: false, urls: [])).newBrowserPane(url: u)
         } else {
             NSWorkspace.shared.open(u)
         }
@@ -116,19 +117,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let saved = Session.load()
         guard !saved.isEmpty else { return false }
         for s in saved {
-            let urls = s.urls.compactMap { URL(string: $0) }
-            guard !urls.isEmpty else { continue }
             var f = s.frame.count == 4 ? NSRect(x: s.frame[0], y: s.frame[1], width: s.frame[2], height: s.frame[3]) : nil
             // AeroSpace parks windows of other workspaces off-screen; a frame saved then is no use
             if let r = f, !NSScreen.screens.contains(where: { $0.visibleFrame.intersects(r.insetBy(dx: 40, dy: 40)) }) { f = nil }
-            let w = newWindow(private: false, urls: urls, frame: f)
-            w.select(min(max(0, s.active), urls.count - 1))
+            let w = newWindow(private: false, urls: [], frame: f)
+            w.restore(s)
+            if w.state.workspaces.isEmpty { w.newWorkspace(url: nil) }
             w.makeKeyAndOrderFront(nil)
         }
         return !windows.isEmpty
     }
 
-    // MARK: Menu: every shortcut lives here (physical Option = cmd; AeroSpace owns alt-*)
+    // MARK: Menu: every shortcut lives here (physical Cmd = cmd inside Casa; AeroSpace owns alt-*)
 
     private func item(_ title: String, _ action: Selector?, _ key: String = "", _ mods: NSEvent.ModifierFlags = [.command], tag: Int = 0) -> NSMenuItem {
         let i = NSMenuItem(title: title, action: action, keyEquivalent: key)
@@ -150,17 +150,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let file = NSMenu(title: "File")
         file.addItem(item("New Window", #selector(newWindow(_:)), "n"))
         file.addItem(item("New Private Window", #selector(newPrivateWindow(_:)), "n", [.command, .shift]))
-        file.addItem(item("New Tab", #selector(BrowserWindow.newTab(_:)), "t"))
-        let newTabEnter = item("New Tab", #selector(BrowserWindow.newTab(_:)), "\r", [.command, .shift])   // as cmd-shift-enter opens a window elsewhere
-        newTabEnter.isHidden = true
-        newTabEnter.allowsKeyEquivalentWhenHidden = true
-        file.addItem(newTabEnter)
+        file.addItem(item("New Workspace", #selector(BrowserWindow.newWorkspaceAction(_:)), "t"))
+        file.addItem(item("New Browser Pane", #selector(BrowserWindow.newBrowserPaneAction(_:)), "\r", [.command, .shift]))   // Omarchy: Super+Shift+Enter
+        file.addItem(hidden(item("New Browser Pane", #selector(BrowserWindow.newBrowserPaneAction(_:)), "b", [.command, .shift])))
+        file.addItem(item("New Terminal Pane", #selector(BrowserWindow.newTerminalPaneAction(_:)), "\r"))   // Omarchy: Super+Enter
+        file.addItem(hidden(item("New Terminal Pane", #selector(BrowserWindow.newTerminalPaneAction(_:)), "`", [.control])))
         file.addItem(item("Open Location", #selector(BrowserWindow.openLocation(_:)), "l"))
-        file.addItem(item("Search Tabs and Commands", #selector(BrowserWindow.searchTabs(_:)), "k"))
+        file.addItem(item("Search Panes and Commands", #selector(BrowserWindow.searchTabs(_:)), "k"))
         file.addItem(.separator())
-        file.addItem(item("Close Tab", #selector(BrowserWindow.closeTabAction(_:)), "w"))
+        file.addItem(item("Close Pane", #selector(BrowserWindow.closePaneAction(_:)), "w"))
         file.addItem(item("Close Window", #selector(NSWindow.performClose(_:)), "w", [.command, .shift]))
-        file.addItem(item("Reopen Closed Tab", #selector(BrowserWindow.reopenClosedTab(_:)), "t", [.command, .shift]))
+        file.addItem(item("Reopen Closed Pane", #selector(BrowserWindow.reopenClosedPane(_:)), "t", [.command, .shift]))
         file.addItem(.separator())
         file.addItem(item("Downloads", #selector(BrowserWindow.showDownloads(_:)), "d", [.command, .shift]))
         main.addItem(submenu(file))
@@ -186,36 +186,51 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         view.addItem(item("Reload Ignoring Cache", #selector(BrowserWindow.reloadPageFromOrigin(_:)), "r", [.command, .shift]))
         view.addItem(item("Stop", #selector(BrowserWindow.stopLoading(_:)), "."))
         view.addItem(.separator())
-        view.addItem(item("Zoom In", #selector(BrowserWindow.zoomIn(_:)), "="))
-        view.addItem(item("Zoom Out", #selector(BrowserWindow.zoomOut(_:)), "-"))
+        view.addItem(item("Zoom In", #selector(BrowserWindow.zoomIn(_:))))      // page zoom: pinch, or these from the palette
+        view.addItem(item("Zoom Out", #selector(BrowserWindow.zoomOut(_:))))
         view.addItem(item("Actual Size", #selector(BrowserWindow.zoomReset(_:)), "0"))
         view.addItem(.separator())
-        view.addItem(item("Toggle Console", #selector(BrowserWindow.toggleConsole(_:)), "j"))
-        let alt = item("Toggle Console", #selector(BrowserWindow.toggleConsole(_:)), "`", [.control])
-        alt.isAlternate = false
-        alt.isHidden = true
-        alt.allowsKeyEquivalentWhenHidden = true
-        view.addItem(alt)
-        let enter = item("Toggle Console", #selector(BrowserWindow.toggleConsole(_:)), "\r")   // as cmd-enter opens a terminal elsewhere
-        enter.isHidden = true
-        enter.allowsKeyEquivalentWhenHidden = true
-        view.addItem(enter)
         view.addItem(item("Web Inspector", #selector(BrowserWindow.showWebInspector(_:)), "i", [.command, .shift]))
         main.addItem(submenu(view))
+
+        // Omarchy's tiling keys, with the physical Cmd key as Super
+        let pane = NSMenu(title: "Pane")
+        pane.addItem(item("Focus Left", #selector(BrowserWindow.focusLeft(_:)), arrow(NSLeftArrowFunctionKey)))
+        pane.addItem(item("Focus Right", #selector(BrowserWindow.focusRight(_:)), arrow(NSRightArrowFunctionKey)))
+        pane.addItem(item("Focus Up", #selector(BrowserWindow.focusUp(_:)), arrow(NSUpArrowFunctionKey)))
+        pane.addItem(item("Focus Down", #selector(BrowserWindow.focusDown(_:)), arrow(NSDownArrowFunctionKey)))
+        pane.addItem(.separator())
+        pane.addItem(item("Swap Left", #selector(BrowserWindow.swapLeft(_:)), arrow(NSLeftArrowFunctionKey), [.command, .shift]))
+        pane.addItem(item("Swap Right", #selector(BrowserWindow.swapRight(_:)), arrow(NSRightArrowFunctionKey), [.command, .shift]))
+        pane.addItem(item("Swap Up", #selector(BrowserWindow.swapUp(_:)), arrow(NSUpArrowFunctionKey), [.command, .shift]))
+        pane.addItem(item("Swap Down", #selector(BrowserWindow.swapDown(_:)), arrow(NSDownArrowFunctionKey), [.command, .shift]))
+        pane.addItem(.separator())
+        pane.addItem(item("Flip Split", #selector(BrowserWindow.toggleSplitAction(_:)), "j"))
+        pane.addItem(item("Zoom Pane", #selector(BrowserWindow.toggleZoomAction(_:)), "f", [.command, .shift]))
+        pane.addItem(.separator())
+        pane.addItem(item("Narrower", #selector(BrowserWindow.narrower(_:)), "-"))
+        pane.addItem(item("Wider", #selector(BrowserWindow.wider(_:)), "="))
+        pane.addItem(item("Shorter", #selector(BrowserWindow.shorter(_:)), "-", [.command, .shift]))
+        pane.addItem(item("Taller", #selector(BrowserWindow.taller(_:)), "=", [.command, .shift]))
+        pane.addItem(.separator())
+        for n in 1...9 {   // cmd-shift-N itself is caught by the window's key monitor; these are for the menu
+            pane.addItem(item("Move to Workspace \(n)", #selector(BrowserWindow.movePaneToWorkspaceAction(_:)), tag: n))
+        }
+        main.addItem(submenu(pane))
 
         let history = NSMenu(title: "History")
         history.addItem(item("Back", #selector(BrowserWindow.goBack(_:)), "["))
         history.addItem(item("Forward", #selector(BrowserWindow.goForward(_:)), "]"))
         main.addItem(submenu(history))
 
-        let window = NSMenu(title: "Window")
-        window.addItem(item("Next Tab", #selector(BrowserWindow.switchTabNext(_:)), "\t", [.control]))
-        window.addItem(item("Previous Tab", #selector(BrowserWindow.switchTabPrevious(_:)), "\t", [.control, .shift]))
-        window.addItem(item("Next Tab", #selector(BrowserWindow.nextTabAction(_:)), "]", [.command, .shift]))
-        window.addItem(item("Previous Tab", #selector(BrowserWindow.previousTabAction(_:)), "[", [.command, .shift]))
+        let window = NSMenu(title: "Workspace")
+        window.addItem(item("Next Workspace", #selector(BrowserWindow.switchWorkspaceNext(_:)), "\t", [.control]))
+        window.addItem(item("Previous Workspace", #selector(BrowserWindow.switchWorkspacePrevious(_:)), "\t", [.control, .shift]))
+        window.addItem(item("Next Workspace", #selector(BrowserWindow.nextWorkspaceAction(_:)), "]", [.command, .shift]))
+        window.addItem(item("Previous Workspace", #selector(BrowserWindow.previousWorkspaceAction(_:)), "[", [.command, .shift]))
         window.addItem(.separator())
         for n in 1...9 {
-            window.addItem(item(n == 9 ? "Last Tab" : "Tab \(n)", #selector(BrowserWindow.selectTabByNumber(_:)), "\(n)", [.command], tag: n))
+            window.addItem(item("Workspace \(n)", #selector(BrowserWindow.goToWorkspaceAction(_:)), "\(n)", [.command], tag: n))
         }
         main.addItem(submenu(window))
         NSApp.mainMenu = main
@@ -227,6 +242,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         i.submenu = m
         return i
     }
+
+    private func hidden(_ i: NSMenuItem) -> NSMenuItem {
+        i.isHidden = true
+        i.allowsKeyEquivalentWhenHidden = true
+        return i
+    }
+
+    private func arrow(_ key: Int) -> String { String(Character(UnicodeScalar(key)!)) }
 
     @objc func newWindow(_ s: Any?) { newWindow(private: false).makeKeyAndOrderFront(nil) }
     @objc func newPrivateWindow(_ s: Any?) { newWindow(private: true).makeKeyAndOrderFront(nil) }
@@ -244,6 +267,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let parts = cmd.split(separator: ":", maxSplits: 1).map(String.init)
         let name = parts[0], arg = parts.count > 1 ? parts[1] : ""
         guard let w = keyBrowserWindow else { if name == "newwindow" { newWindow(private: false).makeKeyAndOrderFront(nil) }; return }
+        let dirs: [String: Direction] = ["l": .left, "r": .right, "u": .up, "d": .down]
         switch name {
         case "palette": w.openPalette(.url)
         case "palette-tabs": w.openPalette(.tabs)
@@ -256,19 +280,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "switcher": w.showSwitcher(delta: 1)
         case "commit": w.commitSwitcher()
         case "hover": w.state.hover = arg != "off"
-        case "newtab": w.newTab(url: arg.isEmpty ? nil : URL(string: arg))
-        case "closetab": w.closeTab()
-        case "reopen": w.reopenTab()
-        case "select": w.select(Int(arg) ?? 0)
+        case "workspace": w.newWorkspace(url: arg.isEmpty ? nil : URL(string: arg))   // cmd-T
+        case "ws": w.goToWorkspace(Int(arg) ?? 1)                                      // cmd-N
+        case "move-ws": w.movePane(toWorkspace: Int(arg) ?? 1)                          // cmd-shift-N
+        case "browser": w.newBrowserPane(url: arg.isEmpty ? nil : URL(string: arg))    // cmd-shift-enter
+        case "term": w.newTerminalPane()                                               // cmd-enter
+        case "closepane": w.closePane()                                                // cmd-W
+        case "reopen": w.reopenPane()
+        case "focus": if let d = dirs[arg] { w.focus(d) }                              // cmd-arrows
+        case "swap": if let d = dirs[arg] { w.swap(d) }                                // cmd-shift-arrows
+        case "flip": w.toggleSplit()                                                   // cmd-J
+        case "zoom": w.toggleZoom()                                                    // cmd-shift-F
+        case "resize":   // resize:w,100 or resize:h,-100
+            let v = arg.split(separator: ",")
+            if v.count == 2, let d = Double(v[1]) { w.resize(v[0] == "h" ? .vertical : .horizontal, by: CGFloat(d)) }
         case "private": newWindow(private: true).makeKeyAndOrderFront(nil)
         case "newwindow": newWindow(private: false).makeKeyAndOrderFront(nil)
-        case "console": w.toggleConsole()
-        case "console-type": w.terminal?.type(arg)
-        case "console-height": w.setConsoleHeight(CGFloat(Double(arg) ?? 300))
+        case "term-type": w.focused?.terminal?.type(arg)
         case "frame":
             let v = arg.split(separator: ",").compactMap { Double($0) }
             if v.count == 4 { w.setFrame(NSRect(x: v[0], y: v[1], width: v[2], height: v[3]), display: true) }
-        case "load": if let u = URL(string: arg) { w.current?.load(u) }
+        case "load": if let u = URL(string: arg) { w.currentTab?.load(u) }
+        case "dump":
+            for ws in w.state.workspaces {
+                let panes = ws.panes.map { ($0.isBrowser ? "web:" : "term:") + ($0.isBrowser ? ($0.tab?.url?.absoluteString ?? "nil") : $0.title) + (ws.focused === $0 ? "*" : "") }
+                NSLog("Casa dump: ws %d%@ panes %@", ws.number, ws === w.current ? " (current)" : "", panes.joined(separator: ", "))
+            }
+            NSLog("Casa dump: mode %@ focused %@", String(describing: w.state.mode), w.focused?.title ?? "nil")
         case "close": w.close()
         case "quit": NSApp.terminate(nil)
         default: NSLog("Casa debug: unknown %@", cmd)
