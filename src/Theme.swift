@@ -36,6 +36,8 @@ enum Theme {
     static let stripHeight: CGFloat = 36
     /// Workspaces 1…5 are always shown in the strip, like Omarchy's persistent workspaces
     static let persistentWorkspaces = 5
+    /// How a workspace is written: 1…9, and 10 as "0" (it sits after 9 and cmd-0 goes there), as in Omarchy's bar
+    static func workspaceLabel(_ n: Int) -> String { n < 10 ? "\(n)" : n == 10 ? "0" : "\u{B7}" }
     static let narrowWidth: CGFloat = 800
 
     /// Nerd Font (Material Design) glyphs

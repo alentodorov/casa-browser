@@ -13,13 +13,13 @@ let blankHTML: String = {
             ("CMD + SHIFT + F", "zoom pane"), ("CMD + - / =", "divider left / right"), ("CMD + SHIFT + - / =", "divider up / down"),
         ]),
         ("workspaces", [
-            ("CMD + T", "new workspace"), ("CMD + 1 … 9", "workspace"), ("CMD + SHIFT + 1 … 9", "move pane to workspace"),
+            ("CMD + T", "new workspace"), ("CMD + 1 … 9, 0", "workspace 1 to 10"), ("CMD + SHIFT + 1 … 9, 0", "move pane to workspace"),
             ("CTRL + TAB", "switcher"), ("CMD + SHIFT + [ / ]", "previous / next"), ("CMD + N", "new window"),
             ("CMD + SHIFT + N", "private window"),
         ]),
         ("browser", [
             ("CMD + L", "address or search"), ("CMD + K", "panes and commands"), ("CMD + [ / ]", "back / forward"),
-            ("CMD + R", "reload"), ("CMD + F", "find in page"), ("CMD + 0", "reset zoom"), ("CMD + SHIFT + T", "reopen closed pane"),
+            ("CMD + R", "reload"), ("CMD + F", "find in page"), ("CMD + K, > ZOOM", "zoom in, out, reset"), ("CMD + SHIFT + T", "reopen closed pane"),
             ("CMD + SHIFT + C", "copy url"), ("CMD + SHIFT + D", "downloads"), ("CMD + SHIFT + I", "web inspector"),
             ("CMD + K, > IMPORT", "cookies and history from chrome or safari"),
         ]),

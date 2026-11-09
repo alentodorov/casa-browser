@@ -102,7 +102,7 @@ final class WindowState: ObservableObject {
         let title = p.title.isEmpty ? (p.host.isEmpty ? (p.isBrowser ? "new tab" : "terminal") : p.host) : p.title
         let sub = p.isBrowser ? p.host : (p.terminal?.pwd ?? p.terminal?.workingDirectory ?? "")
         return PaletteRow(id: "pane:\(p.id)", kind: .pane(p.id), title: title,
-                          subtitle: "\(w.number)  " + sub, glyph: p.isBrowser ? Theme.tab : Theme.console)
+                          subtitle: Theme.workspaceLabel(w.number) + "  " + sub, glyph: p.isBrowser ? Theme.tab : Theme.console)
     }
 
     private func shortURL(_ s: String) -> String {
@@ -225,7 +225,7 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
             return e
         }!)
         // Omarchy's keys, ahead of the web view and Ghostty: cmd-arrows focus, cmd-shift-arrows swap,
-        // cmd-shift-1…9 move the pane to a workspace
+        // cmd-shift-1…9 and 0 move the pane to a workspace
         monitors.append(NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] e in
             guard let self, e.window === self, self.state.mode == .rest else { return e }
             let f = e.modifierFlags.intersection(.deviceIndependentFlagsMask)
@@ -236,7 +236,7 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
                 if shift { self.swap(d) } else { self.focus(d) }
                 return nil
             }
-            let digits: [UInt16: Int] = [18: 1, 19: 2, 20: 3, 21: 4, 23: 5, 22: 6, 26: 7, 28: 8, 25: 9]
+            let digits: [UInt16: Int] = [18: 1, 19: 2, 20: 3, 21: 4, 23: 5, 22: 6, 26: 7, 28: 8, 25: 9, 29: 10]
             if shift, let n = digits[e.keyCode] { self.movePane(toWorkspace: n); return nil }
             return e
         }!)

@@ -116,15 +116,15 @@ The pane keys are Omarchy's with physical Cmd as Super.
 | cmd-J | flip the focused pane's split |
 | cmd-shift-F | zoom the focused pane to the whole workspace, again to unzoom |
 | cmd-- / cmd-= | move the divider 100pt left / right; with shift, up / down. As Hyprland's `resizeactive` does in dwindle (checked against `DwindleLayout::resizeActiveWindow`): the nearest split on that axis moves, so a pane left of the divider shrinks on cmd-- while one right of it grows. Alen's `aerospace-resize` helper does the same for AeroSpace |
-| cmd-1…9 | workspace N (an empty one opens blank with the palette) |
-| cmd-shift-1…9 | move the focused pane to workspace N and follow (handled in `KeySwap`'s event tap, because Shottr owns cmd-shift-1/2 and macOS cmd-shift-3/4/5 as global hotkeys that would otherwise win; so it needs Accessibility, like the swap itself) |
+| cmd-1…9, cmd-0 | workspace N; cmd-0 is workspace 10, written "0" after 9 in the strip, as in Omarchy (an empty one opens blank with the palette) |
+| cmd-shift-1…9, cmd-shift-0 | move the focused pane to workspace N (0 = 10) and follow (handled in `KeySwap`'s event tap, because Shottr owns cmd-shift-1/2 and macOS cmd-shift-3/4/5 as global hotkeys that would otherwise win; so it needs Accessibility, like the swap itself) |
 | ctrl-tab / ctrl-shift-tab | next / previous workspace; held, the switcher stays open until ctrl is released |
 | cmd-shift-] / cmd-shift-[ | next / previous workspace |
 | cmd-L / cmd-K | palette, address mode / panes + `>` commands (`> import …` brings cookies and history from Chrome or Safari) (from a terminal pane the result opens in a new browser pane) |
 | cmd-[ / cmd-] | back / forward (two-finger swipe too) |
 | cmd-R / cmd-shift-R / cmd-. | reload / ignoring cache / stop |
 | cmd-F, cmd-G, cmd-shift-G, esc | find, next, previous, close |
-| cmd-0 | reset page zoom (zoom in/out: pinch, or the palette's `>zoom in` / `>zoom out`) |
+| (no key) | page zoom: pinch, or the palette's `> zoom in` / `> zoom out` / `> reset zoom` |
 | cmd-N / cmd-shift-N | new window / private window (both on workspace 8, AeroSpace-fullscreen) |
 | cmd-shift-C, cmd-shift-D, cmd-shift-I | copy URL, reveal latest download, Web Inspector |
 | cmd-Q, cmd-C/V/X/A/Z, cmd-H | standard (copy/paste also in terminals) |

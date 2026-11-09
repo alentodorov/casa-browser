@@ -136,7 +136,7 @@ struct StripView: View {
 
 /// The workspaces as Omarchy's bar shows them: 1…5 always, dimmed while empty, higher numbers while
 /// in use, the current one a filled square (the same glyph and ink as SketchyBar's workspaces).
-/// cmd-1…9 picks them; click one to go to it (an empty one opens blank with the palette). Shown in
+/// cmd-1…9 picks them and cmd-0 the tenth, written "0"; click one to go to it (an empty one opens blank with the palette). Shown in
 /// every mode, palette and switcher included.
 struct WorkspaceNumbers: View {
     @ObservedObject var state: WindowState
@@ -149,7 +149,7 @@ struct WorkspaceNumbers: View {
             ForEach(shown, id: \.self) { n in
                 let current = state.current?.number == n
                 let inUse = used.contains(n)
-                Text(current ? "\u{F14FB}" : (n < 10 ? "\(n)" : "·"))
+                Text(current ? "\u{F14FB}" : Theme.workspaceLabel(n))
                     .font(Theme.mono(12))
                     .foregroundStyle(Theme.ink.opacity(current ? 1 : inUse ? 0.85 : 0.35))
                     .frame(width: 20, height: 24)
@@ -373,7 +373,7 @@ struct SwitcherRow: View {
         let host = pane?.host ?? ""
         let count = workspace.panes.count
         HStack(spacing: 10) {
-            Text(workspace.number < 10 ? "\(workspace.number)" : "·").font(Theme.mono(10)).foregroundStyle(Theme.grey).frame(width: 12)
+            Text(Theme.workspaceLabel(workspace.number)).font(Theme.mono(10)).foregroundStyle(Theme.grey).frame(width: 12)
             if pane?.isBrowser == true {
                 Tile(host: host, size: 16)
             } else {

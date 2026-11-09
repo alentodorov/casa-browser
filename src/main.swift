@@ -188,7 +188,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         view.addItem(.separator())
         view.addItem(item("Zoom In", #selector(BrowserWindow.zoomIn(_:))))      // page zoom: pinch, or these from the palette
         view.addItem(item("Zoom Out", #selector(BrowserWindow.zoomOut(_:))))
-        view.addItem(item("Actual Size", #selector(BrowserWindow.zoomReset(_:)), "0"))
+        view.addItem(item("Actual Size", #selector(BrowserWindow.zoomReset(_:))))   // cmd-0 is workspace 10, as Super+0 is in Omarchy
         view.addItem(.separator())
         view.addItem(item("Web Inspector", #selector(BrowserWindow.showWebInspector(_:)), "i", [.command, .shift]))
         main.addItem(submenu(view))
@@ -215,7 +215,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         pane.addItem(item("Move Divider Up", #selector(BrowserWindow.dividerUp(_:)), "-", [.command, .shift]))
         pane.addItem(item("Move Divider Down", #selector(BrowserWindow.dividerDown(_:)), "=", [.command, .shift]))
         pane.addItem(.separator())
-        for n in 1...9 {   // cmd-shift-N itself is caught by the window's key monitor; these are for the menu
+        for n in 1...10 {   // cmd-shift-N itself is caught by the window's key monitor; these are for the menu
             pane.addItem(item("Move to Workspace \(n)", #selector(BrowserWindow.movePaneToWorkspaceAction(_:)), tag: n))
         }
         main.addItem(submenu(pane))
@@ -231,8 +231,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.addItem(item("Next Workspace", #selector(BrowserWindow.nextWorkspaceAction(_:)), "]", [.command, .shift]))
         window.addItem(item("Previous Workspace", #selector(BrowserWindow.previousWorkspaceAction(_:)), "[", [.command, .shift]))
         window.addItem(.separator())
-        for n in 1...9 {
-            window.addItem(item("Workspace \(n)", #selector(BrowserWindow.goToWorkspaceAction(_:)), "\(n)", [.command], tag: n))
+        for n in 1...10 {   // cmd-1…9, and cmd-0 for the tenth, which the strip writes as "0" after 9
+            window.addItem(item("Workspace \(n)", #selector(BrowserWindow.goToWorkspaceAction(_:)), "\(n % 10)", [.command], tag: n))
         }
         main.addItem(submenu(window))
         NSApp.mainMenu = main

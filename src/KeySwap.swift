@@ -97,5 +97,5 @@ private func keySwapCallback(proxy: CGEventTapProxy, type: CGEventType, event: C
     return Unmanaged.passUnretained(event)
 }
 
-/// ANSI keycodes of the 1…9 keys
-private let digitKeycodes: [Int64: Int] = [18: 1, 19: 2, 20: 3, 21: 4, 23: 5, 22: 6, 26: 7, 28: 8, 25: 9]
+/// ANSI keycodes of the 1…9 keys, and 0 for workspace 10
+private let digitKeycodes: [Int64: Int] = [18: 1, 19: 2, 20: 3, 21: 4, 23: 5, 22: 6, 26: 7, 28: 8, 25: 9, 29: 10]
