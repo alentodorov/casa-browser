@@ -114,7 +114,7 @@ The pane keys are Omarchy's with physical Cmd as Super.
 | cmd-shift-F | zoom the focused pane to the whole workspace, again to unzoom |
 | cmd-- / cmd-= | pane width −100 / +100; with shift, height |
 | cmd-1…9 | workspace N (an empty one opens blank with the palette) |
-| cmd-shift-1…9 | move the focused pane to workspace N and follow |
+| cmd-shift-1…9 | move the focused pane to workspace N and follow (handled in `KeySwap`'s event tap, because Shottr owns cmd-shift-1/2 and macOS cmd-shift-3/4/5 as global hotkeys that would otherwise win; so it needs Accessibility, like the swap itself) |
 | ctrl-tab / ctrl-shift-tab | next / previous workspace; held, the switcher stays open until ctrl is released |
 | cmd-shift-] / cmd-shift-[ | next / previous workspace |
 | cmd-L / cmd-K | palette, address mode / panes + `>` commands (from a terminal pane the result opens in a new browser pane) |

@@ -8,6 +8,7 @@ import ApplicationServices
 /// the keys: physical Cmd is cmd (cmd-1…9 tabs, cmd-enter console, cmd-shift-enter new tab, like
 /// Chrome), and physical Option is alt, so AeroSpace still answers to Option from inside Casa.
 /// Everywhere else nothing changes. It needs Accessibility access (asked for once at launch).
+/// It also takes cmd-shift-1…9 for Casa before the global screenshot hotkeys can (see below).
 final class KeySwap {
     static let shared = KeySwap()
     fileprivate var tap: CFMachPort?
@@ -77,5 +78,24 @@ private func keySwapCallback(proxy: CGEventTapProxy, type: CGEventType, event: C
         let code = event.getIntegerValueField(.keyboardEventKeycode)
         if let to = swap[code] { event.setIntegerValueField(.keyboardEventKeycode, value: to) }
     }
+
+    // cmd-shift-1…9 (Omarchy's "move window to workspace N") would never reach Casa: Shottr holds
+    // cmd-shift-1/2 and macOS cmd-shift-3/4/5 as global hotkeys, which fire before any app sees the
+    // key. This tap runs before them, so it does the move itself and drops the event.
+    if type == .keyDown || type == .keyUp {
+        let f = event.flags
+        let wanted: CGEventFlags = [.maskCommand, .maskShift]
+        let blocked: CGEventFlags = [.maskControl, .maskAlternate]
+        if f.isSuperset(of: wanted), f.isDisjoint(with: blocked),
+           let n = digitKeycodes[event.getIntegerValueField(.keyboardEventKeycode)] {
+            if type == .keyDown {
+                DispatchQueue.main.async { MainActor.assumeIsolated { AppDelegate.shared.keyBrowserWindow?.movePane(toWorkspace: n) } }
+            }
+            return nil
+        }
+    }
     return Unmanaged.passUnretained(event)
 }
+
+/// ANSI keycodes of the 1…9 keys
+private let digitKeycodes: [Int64: Int] = [18: 1, 19: 2, 20: 3, 21: 4, 23: 5, 22: 6, 26: 7, 28: 8, 25: 9]
