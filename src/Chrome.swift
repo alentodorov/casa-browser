@@ -121,12 +121,10 @@ struct StripView: View {
                 }
                 .padding(.top, 5)
                 .frame(maxWidth: .infinity)
-                if state.mode != .palette, state.mode != .switcher {
-                    WorkspaceNumbers(state: state)
-                        .frame(height: 26)            // the pill's height and line
-                        .padding(.top, 5).padding(.leading, 12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
+                WorkspaceNumbers(state: state)   // always, like the bar; the palette draws over them when narrow
+                    .frame(height: 26)            // the pill's height and line
+                    .padding(.top, 5).padding(.leading, 12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 StatusPills(state: state, narrow: narrow)
                     .padding(.top, 5).padding(.trailing, 8)
                     .frame(maxWidth: .infinity, alignment: .trailing)
@@ -138,7 +136,8 @@ struct StripView: View {
 
 /// The workspaces as Omarchy's bar shows them: 1…5 always, dimmed while empty, higher numbers while
 /// in use, the current one a filled square (the same glyph and ink as SketchyBar's workspaces).
-/// cmd-1…9 picks them; click one to go to it (an empty one opens blank with the palette).
+/// cmd-1…9 picks them; click one to go to it (an empty one opens blank with the palette). Shown in
+/// every mode, palette and switcher included.
 struct WorkspaceNumbers: View {
     @ObservedObject var state: WindowState
 
