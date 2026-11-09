@@ -21,6 +21,7 @@ let blankHTML: String = {
             ("CMD + L", "address or search"), ("CMD + K", "panes and commands"), ("CMD + [ / ]", "back / forward"),
             ("CMD + R", "reload"), ("CMD + F", "find in page"), ("CMD + 0", "reset zoom"), ("CMD + SHIFT + T", "reopen closed pane"),
             ("CMD + SHIFT + C", "copy url"), ("CMD + SHIFT + D", "downloads"), ("CMD + SHIFT + I", "web inspector"),
+            ("CMD + K, > IMPORT", "cookies and history from chrome or safari"),
         ]),
     ]
     func esc(_ s: String) -> String { s.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;") }

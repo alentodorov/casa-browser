@@ -41,6 +41,7 @@ final class WindowState: ObservableObject {
     @Published var findTotal = 0
     @Published var switcherSelection = 0
     @Published var download: DownloadPill?
+    @Published var notice: Notice?
     let isPrivate: Bool
     weak var window: BrowserWindow?
 
@@ -63,6 +64,13 @@ final class WindowState: ObservableObject {
             let needle = q.dropFirst().trimmingCharacters(in: .whitespaces).lowercased()
             for (title, id) in WindowState.commands where needle.isEmpty || title.contains(needle) {
                 rows.append(PaletteRow(id: "cmd:" + id, kind: .command(id), title: title, subtitle: "", glyph: Theme.command))
+            }
+            // One row per browser profile found on this Mac: its cookies and history come over
+            for s in Importer.sources {
+                let title = "import from \(s.label.lowercased())"
+                if needle.isEmpty || title.contains(needle) {
+                    rows.append(PaletteRow(id: "cmd:import:" + s.id, kind: .command("import:" + s.id), title: title, subtitle: "cookies and history", glyph: Theme.download))
+                }
             }
         } else if q.isEmpty {
             if paletteMode == .tabs {
@@ -493,6 +501,7 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
 
     func openPalette(_ mode: PaletteMode) {
         if state.mode == .find { closeOverlay() }
+        Importer.refreshSources()
         state.paletteMode = mode
         let t = focused?.tab
         state.paletteQuery = mode == .url ? (t == nil || t?.isBlank == true ? "" : t?.url?.absoluteString ?? "") : ""
@@ -530,6 +539,7 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
     }
 
     func runCommand(_ id: String) {
+        if id.hasPrefix("import:") { Importer.run(String(id.dropFirst("import:".count)), in: self); return }
         switch id {
         case "terminal": newTerminalPane()
         case "browser": newBrowserPane(url: nil)

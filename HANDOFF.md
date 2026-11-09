@@ -38,6 +38,8 @@ useful; nothing "fun but pointless".
 | `Chrome.swift` | SwiftUI: `StripView` (progress line, `WorkspaceNumbers`, `PillView` / `TerminalPill`, `FindPill`, `StatusPills`), `OverlayView` (`PaletteView`, `SwitcherView` over workspaces), `KeyField` (an AppKit text field so arrows / enter / esc are reliable). |
 | `Tab.swift` | `blankHTML`, the page a new pane starts on: Casa's keys as an Omarchy Super+K style sheet (paper, ink, grey, the Nerd Font; three columns, one when narrow). One `WKWebView` per browser pane: KVO (title, url, progress, canGoBack…), navigation / UI delegates (pop-ups → a new pane beside this one, JS dialogs → sheets), `WKDownload` to `~/Downloads`, find with a JS-counted "n/m", zoom per host, Safari-like UA. Private windows use `WKWebsiteDataStore.nonPersistent()`. |
 | `Console.swift` | libghostty for terminal panes. `GhosttyRuntime` (init, config from `~/.config/ghostty/config` via libghostty's loader, app, runtime callbacks: wakeup, action, clipboard, close). `TerminalView: NSView, NSTextInputClient`, a cut-down port of Ghostty's `SurfaceView_AppKit.swift`: the core attaches its own Metal layer; the view forwards size, scale, focus, keys, mouse, scroll, copy/paste, reports `pwd` (shell integration) through `onPwd`. Shell exit closes the pane; cmd-click links open as browser panes; menu shortcuts beat Ghostty's own cmd keybinds. |
+| `ImportSources.swift` | Reading other browsers, after cmux's `BrowserDataImporter` (its `Sources/Panels/BrowserPanel.swift`): finds Chromium-family profiles (Chrome, Arc, Brave, Edge, Chromium, via `Local State`) and Safari; copies their SQLite files to a temp snapshot and queries them; decrypts Chromium cookie values (`v10`: AES-128-CBC, PBKDF2-SHA1 of the `<Browser> Safe Storage` Keychain password, salt `saltysalt`, 1003 rounds, IV 16 spaces, SHA-256(host) prefix since DB version 24); parses Safari's `Cookies.binarycookies` (cmux does not); history is the 5000 most recent pages plus the 2000 most visited. Pure Foundation, so `tests/import.sh` can run it standalone. |
+| `Import.swift` | `Importer`: runs a source off the main thread (the Keychain prompt blocks), writes cookies into `WKWebsiteDataStore.default()` with Secure / HttpOnly / SameSite / host-only kept, merges visits into `History` (a `c` count field in `history.jsonl`), reports in the `Notice` pill. Palette: `> import from chrome: <profile>` / `> import from safari`, one row per source. Safari needs Full Disk Access for Casa; the pill says so and a click opens that Settings pane. Debug: `import:ID`, `import-history:ID` (no Keychain), `import-selftest`, `cookie-dump:PATH`. |
 | `History.swift` | `~/.local/state/casa/`: `history.jsonl`, `session.json` (v2: windows → workspaces → pane trees; v1's url list still loads), `zoom.json`. |
 | `Theme.swift` | Flexoki colours, font (the Nerd Font **Propo** build, see below), Nerd Font glyphs, `persistentWorkspaces = 5`, paths. |
 
@@ -80,7 +82,7 @@ or find field), `up`, `down`, `enter`, `esc`, `find`, `switcher`, `commit`, `hov
 `workspace[:URL]` (cmd-T), `ws:N` (cmd-N), `move-ws:N` (cmd-shift-N), `browser[:URL]` (cmd-shift-enter),
 `term` (cmd-enter), `term-type:LINE` (types it and Enter into the focused terminal), `closepane`,
 `reopen`, `focus:l|r|u|d`, `swap:l|r|u|d`, `flip`, `zoom`, `resize:w|h,DELTA` (moves the divider by DELTA), `private`, `newwindow`,
-`frame:x,y,w,h`, `load:URL`, `dump` (NSLogs every workspace, pane and the mode), `close`, `quit`.
+`frame:x,y,w,h`, `load:URL`, `dump` (NSLogs every workspace, pane and the mode), `import:ID`, `import-history:ID`, `import-selftest`, `cookie-dump:PATH`, `close`, `quit`.
 `type:>` must be quoted in zsh.
 
 Screenshots without stealing focus: find the window id with `CGWindowListCopyWindowInfo` (owner "Casa",
@@ -118,7 +120,7 @@ The pane keys are Omarchy's with physical Cmd as Super.
 | cmd-shift-1…9 | move the focused pane to workspace N and follow (handled in `KeySwap`'s event tap, because Shottr owns cmd-shift-1/2 and macOS cmd-shift-3/4/5 as global hotkeys that would otherwise win; so it needs Accessibility, like the swap itself) |
 | ctrl-tab / ctrl-shift-tab | next / previous workspace; held, the switcher stays open until ctrl is released |
 | cmd-shift-] / cmd-shift-[ | next / previous workspace |
-| cmd-L / cmd-K | palette, address mode / panes + `>` commands (from a terminal pane the result opens in a new browser pane) |
+| cmd-L / cmd-K | palette, address mode / panes + `>` commands (`> import …` brings cookies and history from Chrome or Safari) (from a terminal pane the result opens in a new browser pane) |
 | cmd-[ / cmd-] | back / forward (two-finger swipe too) |
 | cmd-R / cmd-shift-R / cmd-. | reload / ignoring cache / stop |
 | cmd-F, cmd-G, cmd-shift-G, esc | find, next, previous, close |
@@ -133,6 +135,8 @@ The pane keys are Omarchy's with physical Cmd as Super.
 switcher, find, private, download, narrow, restore; a few older ones still show the dropped music pill);
 `28`–`42` the tiles: restore, terminal pane, three panes, focus, swap, flip, resize, zoom, move to
 workspace 4, switcher, palette over panes, pane closed, narrow, terminal exit, v2 restore; `43`–`46` the
+new-tab shortcut sheet; the import states (palette rows, result and no-access pills, palette over imported
+history) were checked in the app but not saved here, since those shots show private pages. `43`–`46` cover the
 new-tab shortcut sheet (with the palette, alone, split with a terminal, narrow).
 
 **Untested or caveated**
@@ -143,6 +147,11 @@ new-tab shortcut sheet (with the palette, alone, split with a terminal, narrow).
 - The menu shortcuts and the key monitor (cmd-arrows, cmd-shift-arrows, cmd-shift-digits) were only
   driven through the debug channel, not real key events; cmd-arrows are taken even inside a page's text
   field, by design. Give them a hands-on pass.
+- Import: Chromium cookie decryption is only tested by round trip with a synthetic key and against cmux's
+  constants, because a real run needs Alen to answer the Keychain prompt ("casa wants to use Chrome Safe
+  Storage"). Safari was only tested for the no-access path; its cookie parser was checked against Casa's own
+  WebKit `binarycookies` file, flag bits calibrated against `WKHTTPCookieStore`. Chrome session cookies
+  import as session cookies, so they last until Casa quits. Partitioned (CHIPS) cookies are skipped.
 - Dark pages: the 36pt strip is paper by design, so a dark page gets a paper band on top.
 - Find's "n/m" counts page text, so hidden text can inflate it.
 - Web Inspector uses WebKit's private `_inspector`; right-click → Inspect Element is the fallback.

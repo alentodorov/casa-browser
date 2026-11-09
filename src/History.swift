@@ -23,7 +23,8 @@ final class History {
                       let u = j["u"] as? String else { continue }
                 var e = entries[u] ?? HistoryEntry(url: u, title: "", count: 0, last: 0)
                 if let t = j["t"] as? String, !t.isEmpty { e.title = t }
-                e.count += 1
+                // "c" (imports) carries a visit count; a plain line is one visit
+                if let c = (j["c"] as? NSNumber)?.intValue { e.count = max(e.count, c) } else { e.count += 1 }
                 e.last = max(e.last, (j["l"] as? NSNumber)?.doubleValue ?? 0)
                 entries[u] = e
             }
@@ -46,6 +47,29 @@ final class History {
         if let d = try? JSONSerialization.data(withJSONObject: ["u": u, "t": e.title, "l": e.last]) {
             handle?.write(d + Data("\n".utf8))
         }
+    }
+
+    /// Visits imported from another browser: new pages are added, known ones keep the later date and
+    /// the higher count. Returns how many pages were new.
+    func merge(_ visits: [ImportedVisit]) -> Int {
+        var added = 0
+        var lines = Data()
+        for v in visits {
+            guard let url = URL(string: v.url), let scheme = url.scheme, scheme == "http" || scheme == "https" else { continue }
+            let u = url.absoluteString
+            var e = entries[u] ?? HistoryEntry(url: u, title: "", count: 0, last: 0)
+            let isNew = entries[u] == nil
+            let before = (e.count, e.last)
+            if e.title.isEmpty { e.title = v.title }
+            e.count = max(e.count, v.count)
+            e.last = max(e.last, v.last.timeIntervalSince1970)
+            guard isNew || before != (e.count, e.last) else { continue }
+            entries[u] = e
+            if isNew { added += 1 }
+            if let d = try? JSONSerialization.data(withJSONObject: ["u": u, "t": e.title, "l": e.last, "c": e.count]) { lines += d + Data("\n".utf8) }
+        }
+        if !lines.isEmpty { handle?.write(lines) }
+        return added
     }
 
     /// Entries whose title or URL contain every word of the query, best first

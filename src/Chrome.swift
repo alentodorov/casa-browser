@@ -266,6 +266,16 @@ struct StatusPills: View {
 
     var body: some View {
         HStack(spacing: 6) {
+            if let n = state.notice {
+                BlackPill {
+                    Text(n.kind == .fail ? Theme.close : Theme.download).font(Theme.mono(11))
+                        .foregroundStyle(n.kind == .fail ? Theme.red : n.kind == .ok ? Theme.green : n.kind == .warn ? Theme.yellow : Theme.grey)
+                    // As wide as its text, cut short rather than stretched
+                    Text(n.text.count > (narrow ? 28 : 72) ? String(n.text.prefix(narrow ? 27 : 71)) + "…" : n.text)
+                        .font(Theme.mono(11)).foregroundStyle(Theme.paper).lineLimit(1).fixedSize()
+                }
+                .onTapGesture { if let u = n.link { NSWorkspace.shared.open(u) } else { state.notice = nil } }
+            }
             if let d = state.download {
                 BlackPill {
                     Text(d.failed ? Theme.close : Theme.download).font(Theme.mono(11))

@@ -313,6 +313,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSLog("Casa dump: frames %@", frames.joined(separator: " | "))
             }
             NSLog("Casa dump: mode %@ focused %@", String(describing: w.state.mode), w.focused?.title ?? "nil")
+        case "import": Importer.run(arg, in: w)                                        // import:chrome/Default (asks the Keychain)
+        case "import-history": Importer.run(arg, in: w, cookies: false)                // no Keychain prompt
+        case "import-selftest": Task { await Importer.selfTest() }
+        case "cookie-dump": Task { await Importer.dumpCookieFlags(to: arg) }
         case "close": w.close()
         case "quit": NSApp.terminate(nil)
         default: NSLog("Casa debug: unknown %@", cmd)

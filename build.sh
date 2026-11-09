@@ -10,10 +10,10 @@ KIT="vendor/GhosttyKit.xcframework/macos-arm64"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 swiftc -O -swift-version 5 src/*.swift \
-  -I "$KIT/Headers" -L "$KIT" -lghostty-internal -lc++ \
+  -I "$KIT/Headers" -L "$KIT" -lghostty-internal -lc++ -lsqlite3 \
   -framework AppKit -framework WebKit -framework Metal -framework MetalKit -framework CoreText \
   -framework CoreVideo -framework QuartzCore -framework Carbon -framework IOSurface \
-  -framework UniformTypeIdentifiers -framework CoreGraphics -framework Foundation \
+  -framework UniformTypeIdentifiers -framework CoreGraphics -framework Foundation -framework Security \
   -o "$APP/Contents/MacOS/casa"
 
 rsync -a --delete vendor/ghostty-share/ghostty/ "$APP/Contents/Resources/ghostty/"
