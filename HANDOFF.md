@@ -19,7 +19,7 @@ folder for a terminal, a zoom glyph while zoomed; hover widens a browser pill to
 and the path), and a download pill top right while a download runs. cmd-L turns the pill into the
 palette, cmd-F into find. Tiled panes have 6pt paper gaps, a 2pt border in Omarchy's Flexoki Light accent
 (blue `#205EA6`) on the focused one and 1pt base150 on the rest (screenshots `28`–`42` predate this and
-show the earlier ink border; `47` shows the blue); a single pane is edge to edge. ctrl-tab held shows the workspace switcher. Calm and
+show the earlier ink border; `47` shows the blue); a single pane is outlined the same way, and only a zoomed pane is edge to edge. ctrl-tab held shows the workspace switcher. Calm and
 useful; nothing "fun but pointless".
 
 - `PLAN.md` — the original three directions and the chosen one.

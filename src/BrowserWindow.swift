@@ -138,7 +138,7 @@ final class TilesView: NSView {
     func relayout() {
         guard let w = workspace else { return }
         let frames = w.layout(in: bounds)
-        let tiled = w.panes.count > 1 && w.zoomed == nil
+        let tiled = w.zoomed == nil   // one pane or many: outlined; a zoomed pane is not
         for p in w.panes {
             if let f = frames[p.id] {
                 p.box.isHidden = false

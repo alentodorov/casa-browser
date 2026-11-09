@@ -198,9 +198,8 @@ final class Workspace: ObservableObject {
             paneFrames[z.id] = rect
             return paneFrames
         }
-        let tiled = !root.isLeaf
-        let inner = tiled ? rect.insetBy(dx: Workspace.gap, dy: Workspace.gap) : rect
-        place(root, in: inner)
+        // A lone pane keeps its gap and outline, as a single window does in Omarchy; only zoom is edge to edge
+        place(root, in: rect.insetBy(dx: Workspace.gap, dy: Workspace.gap))
         return paneFrames
     }
 
