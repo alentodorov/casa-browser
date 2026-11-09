@@ -8,7 +8,9 @@ import Combine
 enum Axis { case horizontal, vertical }   // horizontal: side by side; vertical: stacked
 enum Direction { case left, right, up, down }
 
-/// The container a pane's view sits in: rounded, with the Omarchy-style border when tiled
+/// The container a pane's view sits in: rounded, and when tiled bordered as Omarchy does on Flexoki
+/// Light: 2pt in the theme accent on the focused pane. The others get a thin base150 line (Omarchy's
+/// 2px grey there was too heavy on paper).
 final class PaneBox: NSView {
     override var isFlipped: Bool { true }
     init() {
@@ -23,7 +25,7 @@ final class PaneBox: NSView {
         CATransaction.begin(); CATransaction.setDisableActions(true)
         l.cornerRadius = tiled ? 6 : 0
         l.borderWidth = tiled ? (focused ? 2 : 1) : 0
-        l.borderColor = (focused ? Theme.nsInk : Theme.nsBase150).cgColor
+        l.borderColor = (focused ? Theme.nsAccent : Theme.nsBase150).cgColor
         CATransaction.commit()
     }
 }

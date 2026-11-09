@@ -17,8 +17,9 @@ workspace style (1…5 always, dimmed while empty, higher numbers while in use, 
 square), a black pill at the top centre for the focused pane (lock + host for a browser, console glyph +
 folder for a terminal, a zoom glyph while zoomed; hover widens a browser pill to back / forward / reload
 and the path), and a download pill top right while a download runs. cmd-L turns the pill into the
-palette, cmd-F into find. Tiled panes have 6pt paper gaps, a 2pt ink border on the focused one and 1pt
-base150 on the rest; a single pane is edge to edge. ctrl-tab held shows the workspace switcher. Calm and
+palette, cmd-F into find. Tiled panes have 6pt paper gaps, a 2pt border in Omarchy's Flexoki Light accent
+(blue `#205EA6`) on the focused one and 1pt base150 on the rest (screenshots `28`–`42` predate this and
+show the earlier ink border; `47` shows the blue); a single pane is edge to edge. ctrl-tab held shows the workspace switcher. Calm and
 useful; nothing "fun but pointless".
 
 - `PLAN.md` — the original three directions and the chosen one.

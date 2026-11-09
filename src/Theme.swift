@@ -20,6 +20,8 @@ enum Theme {
     static let grey = Color(0x878580), ink = Color(0x100F0F), green = Color(0x879A39), orange = Color(0xDA702C)
     static let red = Color(0xD14D41), blue = Color(0x4385BE), cyan = Color(0x3AA99F), yellow = Color(0xD0A215), purple = Color(0x8B7EC8)
     static let nsPaper = NSColor(0xFFFCF0), nsBase100 = NSColor(0xE6E4D9), nsBase150 = NSColor(0xDAD8CE), nsInk = NSColor(0x100F0F)
+    /// Omarchy's Flexoki Light accent, which it uses for the active window border: Flexoki blue-600
+    static let nsAccent = NSColor(0x205EA6)
 
     /// The "Propo" build of the bar's font: same monospaced letters, but the Nerd Font icons get their
     /// full width as advance. In the plain "JetBrainsMono Nerd Font" an icon's ink (9pt at 12pt) is wider
