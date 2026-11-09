@@ -33,9 +33,9 @@ enum Theme {
 
     /// Nerd Font (Material Design) glyphs
     static let lock = "\u{F033E}", search = "\u{F0349}", back = "\u{F004D}", forward = "\u{F0054}", reload = "\u{F0450}"
-    static let play = "\u{F040A}", pause = "\u{F03E4}", close = "\u{F0156}", chevronLeft = "\u{F0141}", chevronRight = "\u{F0142}"
+    static let close = "\u{F0156}", chevronLeft = "\u{F0141}", chevronRight = "\u{F0142}"
     static let history = "\u{F02DA}", web = "\u{F059F}", tab = "\u{F0B4A}", download = "\u{F01DA}", incognito = "\u{F02FA}"
-    static let command = "\u{F0633}", music = "\u{F0387}", terminal = "\u{F0489}", stop = "\u{F04DB}"
+    static let command = "\u{F0633}", terminal = "\u{F0489}", stop = "\u{F04DB}"
 
     /// A stable colour for a host, for the letter tiles that stand in for favicons
     static func tileColor(for host: String) -> Color {
@@ -54,19 +54,10 @@ enum Paths {
     static let zoom = state + "/zoom.json"
     static let downloads = home + "/Downloads"
     static let projects = home + "/projects"
-    static let mpvSocket = home + "/.local/state/yt/mpv.sock"
-    static let tracks = home + "/.local/state/yt/tracks.json"
-    static let timer = home + "/.local/state/timer/current.json"
 
     static func ensureState() {
         try? FileManager.default.createDirectory(atPath: state, withIntermediateDirectories: true)
     }
-}
-
-/// "3:05" or "1:02:14"
-func clockString(_ t: Double) -> String {
-    let s = Int(t.rounded(.up))
-    return s >= 3600 ? String(format: "%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60) : String(format: "%d:%02d", s / 60, s % 60)
 }
 
 /// The host as the pill shows it: no "www."

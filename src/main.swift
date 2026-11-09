@@ -7,6 +7,8 @@ import WebKit
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     static var shared: AppDelegate!
+    /// The AeroSpace workspace every Casa window lives on
+    static let workspace = "8"
     private(set) var windows: [BrowserWindow] = []
     private var pendingURLs: [URL] = []
     private var launched = false
@@ -17,7 +19,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         buildMenu()
         KeySwap.shared.start()   // physical Cmd is cmd again while Casa is in front
         _ = History.shared
-        _ = Live.shared
         if !pendingURLs.isEmpty {
             let w = newWindow(private: false, urls: pendingURLs)
             w.makeKeyAndOrderFront(nil)
@@ -56,7 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func newWindow(private isPrivate: Bool, urls: [URL]? = nil, frame: NSRect? = nil) -> BrowserWindow {
         let w = BrowserWindow(isPrivate: isPrivate, frame: frame)
         windows.append(w)
-        fullscreen(w)
+        place(w)
         if let urls, !urls.isEmpty {
             for u in urls { w.newTab(url: u, select: false) }
             w.select(0)
@@ -66,21 +67,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return w
     }
 
-    /// Every window is fullscreen (AeroSpace's, so it stays on its workspace and alt-f still toggles
-    /// it). AeroSpace needs a moment to pick up a new window, so ask again if the first try was early.
-    private func fullscreen(_ w: BrowserWindow, attempt: Int = 0) {
+    /// Every window goes to workspace 8 (focus follows it, so SketchyBar and the screen switch too)
+    /// and is fullscreen there (AeroSpace's, so alt-f still toggles it). AeroSpace needs a moment to
+    /// pick up a new window, so ask again if the first try was early.
+    private func place(_ w: BrowserWindow, attempt: Int = 0) {
         DispatchQueue.main.asyncAfter(deadline: .now() + (attempt == 0 ? 0.4 : 0.8)) { [weak self, weak w] in
             guard let w else { return }
-            guard w.isVisible else { if attempt < 4 { self?.fullscreen(w, attempt: attempt + 1) }; return }
-            let p = Process()
-            p.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/aerospace")
-            p.arguments = ["fullscreen", "on", "--window-id", String(w.windowNumber)]
-            p.standardOutput = FileHandle.nullDevice
-            p.standardError = FileHandle.nullDevice
-            p.terminationHandler = { proc in
-                if proc.terminationStatus != 0, attempt < 4 { DispatchQueue.main.async { self?.fullscreen(w, attempt: attempt + 1) } }
+            guard w.isVisible else { if attempt < 4 { self?.place(w, attempt: attempt + 1) }; return }
+            let id = String(w.windowNumber)
+            let retry = { if attempt < 4 { self?.place(w, attempt: attempt + 1) } }
+            aerospace(["move-node-to-workspace", "--focus-follows-window", "--window-id", id, AppDelegate.workspace]) { ok in
+                guard ok else { retry(); return }
+                aerospace(["fullscreen", "on", "--window-id", id]) { ok in if !ok { retry() } }
             }
-            try? p.run()
         }
     }
 
@@ -275,6 +274,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         default: NSLog("Casa debug: unknown %@", cmd)
         }
     }
+}
+
+/// Runs an AeroSpace command and reports on the main thread whether it succeeded
+@MainActor
+func aerospace(_ args: [String], done: @escaping @MainActor (Bool) -> Void) {
+    let p = Process()
+    p.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/aerospace")
+    p.arguments = args
+    p.standardOutput = FileHandle.nullDevice
+    p.standardError = FileHandle.nullDevice
+    p.terminationHandler = { proc in
+        let ok = proc.terminationStatus == 0
+        DispatchQueue.main.async { MainActor.assumeIsolated { done(ok) } }
+    }
+    do { try p.run() } catch { done(false) }
 }
 
 MainActor.assumeIsolated {

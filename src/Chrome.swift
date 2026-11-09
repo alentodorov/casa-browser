@@ -1,25 +1,10 @@
 // The chrome, in SwiftUI: the pill (host, tab count; back / forward / reload on hover), the find
-// field in its place, the timer / now-playing / download pills on the right, and the overlays:
+// field in its place, the download pill on the right, and the overlays:
 // the palette (one search over tabs, history, URLs and commands) and the tab switcher.
 import AppKit
 import SwiftUI
 
 // MARK: Pieces
-
-struct MiniRing: View {
-    var fraction: Double
-    var size: CGFloat = 13
-    var color: Color = Theme.paper
-    var track: Color = Theme.paper.opacity(0.2)
-    var body: some View {
-        ZStack {
-            Circle().stroke(track, lineWidth: 2)
-            Circle().trim(from: 0, to: max(0, min(1, fraction)))
-                .stroke(color, style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-        }.frame(width: size, height: size)
-    }
-}
 
 struct Tile: View {
     let host: String
@@ -112,11 +97,10 @@ struct KeyField: NSViewRepresentable {
     }
 }
 
-// MARK: The strip: pill in the middle, status pills on the right
+// MARK: The strip: pill in the middle, the download pill on the right
 
 struct StripView: View {
     @ObservedObject var state: WindowState
-    @ObservedObject var live = Live.shared
 
     var body: some View {
         GeometryReader { geo in
@@ -139,7 +123,7 @@ struct StripView: View {
                         .padding(.top, 5).padding(.leading, 12)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                StatusPills(state: state, live: live, narrow: narrow)
+                StatusPills(state: state, narrow: narrow)
                     .padding(.top, 5).padding(.trailing, 8)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
@@ -257,7 +241,6 @@ struct FindPill: View {
 
 struct StatusPills: View {
     @ObservedObject var state: WindowState
-    @ObservedObject var live: Live
     let narrow: Bool
 
     var body: some View {
@@ -269,26 +252,6 @@ struct StatusPills: View {
                     if !narrow { Text(d.name).font(Theme.mono(11)).foregroundStyle(Theme.paper).lineLimit(1).frame(maxWidth: 160) }
                 }
                 .onTapGesture { state.window?.revealDownload() }
-            }
-            if let t = live.timer {
-                BlackPill {
-                    MiniRing(fraction: t.fraction, color: t.done ? Theme.green : t.paused ? Theme.grey : Theme.paper)
-                    Text(t.done ? "done" : clockString(t.left)).font(Theme.mono(11)).monospacedDigit()
-                        .foregroundStyle(t.done ? Theme.green : t.paused ? Theme.grey : Theme.paper)
-                }
-            }
-            if let m = live.music {
-                BlackPill {
-                    if let c = live.cover {
-                        Image(nsImage: c).resizable().aspectRatio(contentMode: .fill)
-                            .frame(width: 14, height: 14).clipShape(RoundedRectangle(cornerRadius: 3))
-                    } else {
-                        Text(Theme.music).font(Theme.mono(11)).foregroundStyle(Theme.grey)
-                    }
-                    if !narrow { Text(m.title).font(Theme.mono(11)).foregroundStyle(m.paused ? Theme.grey : Theme.paper).lineLimit(1).frame(maxWidth: 180) }
-                    if m.paused { Text(Theme.pause).font(Theme.mono(10)).foregroundStyle(Theme.grey) }
-                }
-                .onTapGesture { live.togglePause() }
             }
         }
     }

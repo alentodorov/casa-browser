@@ -9,9 +9,10 @@ commit and push only when told. The app builds to `~/Applications/Casa.app`, bun
 Design **direction A, "Notch"**: no chrome except what floats in the page's top 36pt strip
 (`WKWebView.obscuredContentInsets`, macOS 26): a black pill at the top centre with lock, host and
 `3/7`; hover widens it to back / forward / reload and the path; cmd-L turns it into the palette, cmd-F
-into find. Tab numbers sit top-left in SketchyBar's workspace style. Timer and now-playing pills sit top
-right, only while live. Tabs are keyboard-first; ctrl-tab held shows the switcher. One window = one tab
-group; every window is AeroSpace-fullscreen on its workspace. A libghostty console (zsh) slides up as a
+into find. Tab numbers sit top-left in SketchyBar's workspace style. A download pill sits top right
+while a download runs. (The timer and now-playing pills from the mockups were dropped on 2026-11-09;
+the mockups still show them.) Tabs are keyboard-first; ctrl-tab held shows the switcher. One window = one tab
+group; every window is moved to AeroSpace workspace 8 and made fullscreen there (focus follows it). A libghostty console (zsh) slides up as a
 split under the page on cmd-J / cmd-enter / ctrl-`. Calm and useful; nothing "fun but pointless".
 
 - `PLAN.md` — the three directions, the chosen one, keyboard map, v1 / later.
@@ -22,13 +23,12 @@ split under the page on cmd-J / cmd-enter / ctrl-`. Calm and useful; nothing "fu
 
 | file | what |
 |---|---|
-| `main.swift` | `AppDelegate`: windows, the whole menu (every shortcut lives here), session save/restore, URL open (http/https registered in Info.plist but Casa is **not** set as default browser), `fullscreen(_:)` (runs `/opt/homebrew/bin/aerospace fullscreen on --window-id N` for each new window, 4 retries), the `CASA_DEBUG` channel. Starts `KeySwap`. |
+| `main.swift` | `AppDelegate`: windows, the whole menu (every shortcut lives here), session save/restore, URL open (http/https registered in Info.plist but Casa is **not** set as default browser), `place(_:)` (runs `aerospace move-node-to-workspace --focus-follows-window --window-id N 8` then `aerospace fullscreen on --window-id N` for each new window, 4 retries; `AppDelegate.workspace` is the "8"), the `CASA_DEBUG` channel. Starts `KeySwap`. |
 | `KeySwap.swift` | CGEvent tap (`.cghidEventTap`, head insert) active only while Casa is frontmost. Alen's Karabiner swaps cmd/alt globally so physical Cmd drives AeroSpace; this swaps them back inside Casa: generic flags, device-specific bits, and modifier keycodes 55/58, 54/61 on flagsChanged. So in Casa physical Cmd = cmd (Chrome-like) and physical Option = alt (reaches AeroSpace). Needs Accessibility: prompts at launch, polls `AXIsProcessTrusted` every 2s until granted. |
 | `BrowserWindow.swift` | `WindowState` (tabs, mode, palette rows, find, download pill, console flag) and `BrowserWindow: NSWindow` (widgets' chromeless window: hidden transparent title bar, traffic lights hidden, min 480×320). Holds an `NSSplitView` (page over console), the strip hosting view, the overlay hosting view (palette / switcher), all tab actions, and the `@objc` menu actions. |
 | `Chrome.swift` | SwiftUI: `StripView` (progress line, `TabNumbers`, `PillView`, `FindPill`, `StatusPills`), `OverlayView` (`PaletteView`, `SwitcherView`), `KeyField` (an AppKit text field so arrows / enter / esc are reliable). `TabNumbers`: numbers top-left, current tab = U+F14FB filled square, click selects, hover shows the title, hidden while palette or switcher is open. |
 | `Tab.swift` | One `WKWebView` per tab: KVO (title, url, progress, canGoBack…), navigation / UI delegates (popups → new tab, JS dialogs → sheets), `WKDownload` to `~/Downloads`, find with a JS-counted "n/m", zoom per host, Safari-like UA. Private windows use `WKWebsiteDataStore.nonPersistent()`. |
 | `Console.swift` | libghostty. `GhosttyRuntime` (init, config from `~/.config/ghostty/config` via libghostty's loader, app, runtime callbacks: wakeup, action, clipboard, close). `TerminalView: NSView, NSTextInputClient`, a cut-down port of Ghostty's `SurfaceView_AppKit.swift`: the core attaches its own Metal layer; the view forwards size, scale, focus, keys, mouse, scroll, copy/paste. Shell exit closes the console; cmd-click links open as Casa tabs; menu shortcuts beat Ghostty's own cmd keybinds. |
-| `Live.swift` | Timer (`~/.local/state/timer/current.json`) and mpv (`~/.local/state/yt/mpv.sock` JSON IPC + `tracks.json` for title/cover), polled every 0.5s/1s. |
 | `History.swift` | `~/.local/state/casa/`: `history.jsonl`, `session.json`, `zoom.json`. |
 | `Theme.swift` | Flexoki colours, font, Nerd Font glyphs, paths. |
 
@@ -78,10 +78,9 @@ layer 0) or `aerospace list-windows --all | grep Casa`, then
     screencapture -l<windowID> -o -x out.png
 
 For a narrow tile: `aerospace layout floating --window-id N`, `frame:200,100,640,800`, then
-`aerospace layout tiling --window-id N`. Test windows land on the current workspace; quit when done.
-A timer for the pills: `~/.local/bin/timer 1` / `timer cancel` (it also opens the Timer Widget).
-Don't change the music mpv is playing. The debug path sets state directly, so it doesn't exercise
-real key events.
+`aerospace layout tiling --window-id N`. Every window lands on workspace 8 and focuses it (switch back
+with `aerospace workspace N`); quit when done.
+The debug path sets state directly, so it doesn't exercise real key events.
 
 ## Keyboard map
 
@@ -94,7 +93,7 @@ alt-* keys; `~/.aerospace.toml` owns `alt-*`, `alt-shift-*`, `alt-cmd-*`, `alt-c
 | cmd-K | palette, tabs + `>` commands |
 | cmd-T, cmd-shift-enter | new tab (blank, palette opens) |
 | cmd-W / cmd-shift-W / cmd-shift-T | close tab / close window / reopen closed tab |
-| cmd-N / cmd-shift-N | new window / private window (both AeroSpace-fullscreen on this workspace) |
+| cmd-N / cmd-shift-N | new window / private window (both on workspace 8, AeroSpace-fullscreen) |
 | cmd-1…8, cmd-9 | tab N, last tab |
 | ctrl-tab / ctrl-shift-tab | next / previous; held, the switcher stays open until ctrl is released |
 | cmd-shift-] / cmd-shift-[ | next / previous tab |
@@ -112,8 +111,9 @@ alt-* keys; `~/.aerospace.toml` owns `alt-*`, `alt-shift-*`, `alt-cmd-*`, `alt-c
 
 **Done and screenshot-tested** (`screenshots/01`–`27`): launch with palette, browsing, pill rest and
 hover, palette (address, tabs, commands), switcher, find with count, new / close / reopen tab, private
-window, timer pill running / done / idle, music pill, download pill, console open / command / resized /
-closed / shell exit, narrow 640 tile, session restore.
+window, download pill, console open / command / resized / closed / shell exit, narrow 640 tile, session
+restore. `01`–`04` and `15` were re-shot on 2026-11-09 with the tab numbers, workspace-8 fullscreen and no
+widget pills; the music pill still shows in some of the other shots from before the widgets were dropped.
 
 **Untested or caveated**
 
@@ -121,8 +121,10 @@ closed / shell exit, narrow 640 tile, session restore.
   Verify: physical Cmd-T opens a tab, physical Cmd-L the palette, physical Option-1 switches workspace.
 - The menu shortcuts, ctrl-tab-held switcher and console typing were only driven through the debug
   channel, not real key events. Give them a hands-on pass.
-- `TabNumbers` and AeroSpace fullscreen-on-create were added after the screenshot run; re-shoot
-  `01`–`04` and `15` for them.
+- **Dark pages** (see `04-three-tabs.png`, ghostty.org): the 36pt strip shows the web view's
+  `underPageBackgroundColor` (paper), not the page, so a dark page gets a paper band on top and the
+  ink tab numbers sit on its edge. Needs a design call: tint the strip from the page (`WKWebView.themeColor`
+  / a sampled colour) or switch the numbers to paper over dark pages. Not changed.
 - Find's "n/m" counts page text, so hidden text can inflate it.
 - Web Inspector uses WebKit's private `_inspector`; right-click → Inspect Element is the fallback.
 - The console auto-approves Ghostty's clipboard confirmations; Ghostty's own cmd keybinds (cmd-K
