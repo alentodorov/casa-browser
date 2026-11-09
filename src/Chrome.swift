@@ -143,9 +143,10 @@ struct WorkspaceNumbers: View {
 
     var body: some View {
         let used = Set(state.workspaces.map(\.number))
-        let last = max(Theme.persistentWorkspaces, used.max() ?? 0)
+        // 1…5 always; above that only the workspaces that exist, not the gap up to them
+        let shown = Array(1...Theme.persistentWorkspaces) + used.filter { $0 > Theme.persistentWorkspaces }.sorted()
         HStack(spacing: 0) {
-            ForEach(1...last, id: \.self) { n in
+            ForEach(shown, id: \.self) { n in
                 let current = state.current?.number == n
                 let inUse = used.contains(n)
                 Text(current ? "\u{F14FB}" : (n < 10 ? "\(n)" : "·"))
