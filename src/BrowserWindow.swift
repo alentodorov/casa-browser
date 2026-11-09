@@ -126,11 +126,9 @@ final class OverlayHost<V: View>: NSHostingView<V> {
 final class TilesView: NSView {
     override var isFlipped: Bool { true }
     private(set) var workspace: Workspace?
-    private var focused: Pane?
 
-    func show(_ w: Workspace?, focused f: Pane?) {
+    func show(_ w: Workspace?) {
         workspace = w
-        focused = f
         let boxes = Set((w?.panes ?? []).map { ObjectIdentifier($0.box) })
         for v in subviews where !boxes.contains(ObjectIdentifier(v)) { v.removeFromSuperview() }
         for p in w?.panes ?? [] where p.box.superview !== self { addSubview(p.box) }
@@ -148,7 +146,7 @@ final class TilesView: NSView {
             } else {
                 p.box.isHidden = true   // zoomed away
             }
-            p.box.style(focused: p === focused, tiled: tiled)
+            p.box.style(focused: p === w.focused, tiled: tiled)
         }
     }
 
@@ -292,7 +290,7 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
         if state.mode != .rest { closeOverlay() }
         state.current = w
         state.focused = w.focused
-        tiles.show(w, focused: w.focused)
+        tiles.show(w)
         if let p = w.focused { makeFirstResponder(p.view) }
         titleSub = w.focused?.$title.sink { [weak self] t in self?.title = t.isEmpty ? "Casa" : t }
         sessionChanged()
@@ -443,7 +441,7 @@ final class BrowserWindow: NSWindow, NSWindowDelegate {
         guard let w = current else { return }
         state.focused = w.focused
         if let f = w.focused { titleSub = f.$title.sink { [weak self] t in self?.title = t.isEmpty ? "Casa" : t } }
-        tiles.show(w, focused: w.focused)
+        tiles.show(w)
     }
 
     // MARK: Navigation (the focused browser pane)
