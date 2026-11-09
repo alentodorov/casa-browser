@@ -21,10 +21,13 @@ enum Theme {
     static let red = Color(0xD14D41), blue = Color(0x4385BE), cyan = Color(0x3AA99F), yellow = Color(0xD0A215), purple = Color(0x8B7EC8)
     static let nsPaper = NSColor(0xFFFCF0), nsBase100 = NSColor(0xE6E4D9), nsInk = NSColor(0x100F0F)
 
-    static let fontName = "JetBrainsMono Nerd Font"
+    /// The "Propo" build of the bar's font: same monospaced letters, but the Nerd Font icons get their
+    /// full width as advance. In the plain "JetBrainsMono Nerd Font" an icon's ink (9pt at 12pt) is wider
+    /// than its advance (7.2pt) and SwiftUI clips it, cutting the right edge off every wide glyph.
+    static let fontName = "JetBrainsMono Nerd Font Propo"
     static func mono(_ size: CGFloat) -> Font { .custom(fontName, size: size).bold() }
     static func nsMono(_ size: CGFloat) -> NSFont {
-        NSFont(name: "JetBrainsMonoNF-Bold", size: size) ?? NSFont(name: fontName, size: size) ?? .monospacedSystemFont(ofSize: size, weight: .bold)
+        NSFont(name: "JetBrainsMonoNFP-Bold", size: size) ?? NSFont(name: fontName, size: size) ?? .monospacedSystemFont(ofSize: size, weight: .bold)
     }
 
     /// The strip at the top of the page that the pill floats in (WKWebView.obscuredContentInsets)
@@ -34,8 +37,8 @@ enum Theme {
     /// Nerd Font (Material Design) glyphs
     static let lock = "\u{F033E}", search = "\u{F0349}", back = "\u{F004D}", forward = "\u{F0054}", reload = "\u{F0450}"
     static let close = "\u{F0156}", chevronLeft = "\u{F0141}", chevronRight = "\u{F0142}"
-    static let history = "\u{F02DA}", web = "\u{F059F}", tab = "\u{F0B4A}", download = "\u{F01DA}", incognito = "\u{F02FA}"
-    static let command = "\u{F0633}", terminal = "\u{F0489}", stop = "\u{F04DB}"
+    static let history = "\u{F02DA}", web = "\u{F059F}", tab = "\u{F04E9}", download = "\u{F01DA}", incognito = "\u{F05F9}"
+    static let command = "\u{F0633}", stop = "\u{F04DB}"
 
     /// A stable colour for a host, for the letter tiles that stand in for favicons
     static func tileColor(for host: String) -> Color {

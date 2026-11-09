@@ -119,6 +119,14 @@ Fixed 2026-11-09: the pill, tab numbers and overlays sat 16–32pt too low becau
 the hidden title bar as a 32pt safe area; `StripHost` and `OverlayHost` now set `safeAreaRegions = []`
 (the pill is at 5–31pt inside the 36pt strip, measured from screenshots).
 
+Fixed 2026-11-09, design QA: wide Nerd Font icons lost their right edge (the current-tab square, globe,
+history, ⌘) because in "JetBrainsMono Nerd Font" an icon's ink is wider than its advance and SwiftUI clips
+to the advance; `Theme.fontName` is now the "Propo" build (same letters, icons get their full advance).
+Two glyphs were wrong codepoints: tab rows showed md-box_cutter_off and the private pill md-import; now
+md-tab (F04E9) and md-incognito (F05F9). Look codepoints up in nerd-fonts' `glyphnames.json`, not from memory.
+Nits left as they are: disabled back/forward at 30% are very faint on black; the palette field's selection
+colour follows the system accent.
+
 **Untested or caveated**
 
 - `KeySwap` has not been tried with real keys; it needs Alen to grant Accessibility to Casa first.
