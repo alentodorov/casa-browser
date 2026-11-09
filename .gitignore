@@ -1,0 +1,7 @@
+.DS_Store
+
+# libghostty source: shallow clone of ghostty v1.4.0, 670 MB with its own .git (see vendor/README.md)
+vendor/ghostty/
+
+# libghostty static library, 143 MB (over GitHub's 100 MB limit); rebuilt from vendor/ghostty
+vendor/GhosttyKit.xcframework/macos-arm64/libghostty-internal.a
